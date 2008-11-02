@@ -1,0 +1,4 @@
+# -*- conf -*-
+<syntax/*>: camlp4of, pkg_camlp4
+<test/*.ml{,i}>: pkg_camlp4, syntax_camlp4o, pa_estring
+<test/*>: use_estring
