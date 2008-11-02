@@ -1,4 +1,5 @@
 src/EList
 src/EString
+src/EUChar
 src/EPrintf
 src/EString_pervasives

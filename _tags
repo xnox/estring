@@ -1,4 +1,10 @@
 # -*- conf -*-
-<syntax/*>: camlp4of, pkg_camlp4
-<test/*.ml{,i}>: pkg_camlp4, syntax_camlp4o, pa_estring
+
+# use camlp4 everywhere
+<**/*.ml{,i}>: pkg_camlp4, syntax_camlp4o
+
+# Specific rules
+<syntax/*>: pkg_camlp4.lib, pkg_camlp4.quotations.o, use_estring
+<src/*.ml{,i}>: pkg_camlp4.macro
+<test/*.ml{,i}>: pa_estring
 <test/*>: use_estring
