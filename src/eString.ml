@@ -11,7 +11,7 @@ type t = char list
 
 let of_string str =
   let rec aux acc = function
-    | -1 -> []
+    | -1 -> acc
     | i -> aux (String.unsafe_get str i :: acc) (i - 1)
   in
   aux [] (String.length str - 1)
@@ -158,34 +158,26 @@ let of_float x = of_string (string_of_float x)
 
 external is_printable : char -> bool = "caml_is_printable"
 
-let escaped_of_char = function
-  | '\'' -> [ '\\'; '\'' ]
-  | '\\' -> [ '\\'; '\\' ]
-  | '\n' -> [ '\\'; 'n' ]
-  | '\t' -> [ '\\'; 't' ]
+let prepend_escaped_of_char ch acc = match ch with
+  | '\'' -> '\\' :: '\'' :: acc
+  | '\\' -> '\\' :: '\\' :: acc
+  | '\n' -> '\\' :: 'n' :: acc
+  | '\t' -> '\\' :: 't' :: acc
   | c ->
       if is_printable c then
-        [c]
-      else
-        let n = Char.code c in
-        ['\\';
-         Char.unsafe_chr (48 + n / 100);
-         Char.unsafe_chr (48 + (n / 10) mod 10);
-         Char.unsafe_chr (48 + n mod 10)]
-
-let rec escaped = function
-  | [] -> []
-  | '\'' :: l -> '\\' :: '\'' :: escaped l
-  | '\\' :: l -> '\\' :: '\\' :: escaped l
-  | '\n' :: l -> '\\' :: 'n' :: escaped l
-  | '\t' :: l -> '\\' :: 't' :: escaped l
-  | c :: l ->
-      if is_printable c then
-        c :: escaped l
+        c :: acc
       else
         let n = Char.code c in
         '\\'
         :: Char.unsafe_chr (48 + n / 100)
         :: Char.unsafe_chr (48 + (n / 10) mod 10)
         :: Char.unsafe_chr (48 + n mod 10)
-        :: escaped l
+        :: acc
+
+let escaped_of_char ch = prepend_escaped_of_char ch []
+
+let rec prepend_escaped str acc = match str with
+  | [] -> acc
+  | c :: l -> prepend_escaped_of_char c (prepend_escaped l acc)
+
+let escaped str = prepend_escaped str []

@@ -18,11 +18,19 @@ val of_string : string -> t
 val to_string : t -> string
   (** Convert a char list to a string *)
 
+val prepend_escaped : t -> t -> t
+  (** [append_escaped str acc] prepend an escaped version of [str] to
+      [acc] *)
+
 val escaped : t -> t
-  (** Escape a string *)
+  (** [escaped str] same as [prepend_escaped str []] *)
+
+val prepend_escaped_of_char : char -> t -> t
+  (** [prepend_escaped_of_char ch acc] prepend an escaped version of
+      [ch] to acc *)
 
 val escaped_of_char : char -> t
-  (** [escaped_of_char ch] same as [escaped [ch]] *)
+  (** [escaped_of_char ch] same as [prepend_escaped_of_char ch []] *)
 
 (** {6 Parsing/printing} *)
 

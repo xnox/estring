@@ -12,6 +12,8 @@ open EString
 
 type estring = char list
 type ('a, 'b) printer = ('a, 'b) EPrintf.printer
+type uchar = EUChar.t
+type unicode = uchar list
 
 let rec fold f acc = function
   | [] -> acc
@@ -36,6 +38,29 @@ let print_estring = List.iter print_char
 let prerr_estring = List.iter print_char
 let output_estring oc = List.iter (output_char oc)
 
+let uchar_of_char = EUChar.of_char
+let char_of_uchar = EUChar.to_char
+let uchar_of_int32 = EUChar.of_int32
+let int32_of_uchar = EUChar.to_int32
+
+let rec parse_utf8 = function
+  | [] -> []
+  | l ->
+      let ch, rest = EUChar.next l in
+      ch :: parse_utf8 rest
+
+let unicode_of_estring l =
+  try
+    parse_utf8 l
+  with
+      _ -> failwith "unicode_of_estring"
+
+let rec estring_of_unicode = function
+  | [] -> []
+  | ch :: l -> EUChar.estring_prepend ch (estring_of_unicode l)
+
+let unicode = unicode_of_estring
+
 let print__c = { print = fun cont out acc ch -> cont (out.add ch acc) }
 let print__C = { print = fun cont out acc ch -> cont (out.add '\'' (fold out.add (out.add '\'' acc) (escaped_of_char ch))) }
 let print__s = { print = fun cont out acc str -> cont (fold out.add acc str) }
@@ -52,6 +77,15 @@ let print__nS = { print = fun cont out acc str ->
                       acc := fold out.add !acc (escaped_of_char (String.unsafe_get str i))
                     done;
                     cont (out.add '"' !acc) }
+let print__any = { print = fun cont out acc _ -> print__ns.print cont out acc "<abstract>" }
+
+let printuc out ch acc = fold out.add acc (EUChar.to_estring ch)
+let printuC out ch acc = fold out.add acc (EUChar.estring_escaped ch)
+
+let print__uc = { print = fun cont out acc ch -> cont (printuc out ch acc) }
+let print__uC = { print = fun cont out acc ch -> cont (out.add '\'' ((printuC out ch (out.add '\'' acc)))) }
+let print__us = { print = fun cont out acc str -> cont (fold (printuc out) acc str) }
+let print__uS = { print = fun cont out acc str -> cont (out.add '"' (fold (printuc out) (out.add '"' acc) str)) }
 
 module type Operations = sig
   type t
@@ -195,8 +229,10 @@ let print__int32 = { print = fun cont out acc x -> cont (out.add 'l' (fold out.a
 let print__int64 = { print = fun cont out acc x -> cont (out.add 'L' (fold out.add acc (estring_of_int64 x))) }
 let print__nativeint = { print = fun cont out acc x -> cont (out.add 'L' (fold out.add acc (estring_of_nativeint x))) }
 let print__char = print__C
+let print__uchar = { print = fun cont out acc x -> print__uC.print cont out (out.add 'u' acc) x }
 let print__bool = print__B
-let print__string = print__nS
+let print__string = { print = fun cont out acc x -> print__nS.print cont out (out.add 'n' acc) x }
+let print__unicode = { print = fun cont out acc x -> print__uS.print cont out (out.add 'u' acc) x }
 let print__estring = print__S
 
 let rec plist x cont out l acc = match l with
