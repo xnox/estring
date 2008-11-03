@@ -12,46 +12,38 @@
 type t = EUChar.t list
     (** A unicode string is a list of unicode characters *)
 
-(** {6 Unicode string manipulation} *)
+(** {6 UTF8} *)
 
-val length : t -> int
-  (** [length str] @return the number of bytes of the string
-      representation of [str] *)
+val of_utf8 : EString.t -> t
+  (** [of_utf8 str] if [str] is a valid UTF8-encoded string, then
+      @return the unicode string represented by [str], otherwise
+      @raise [Failure "EUnicode.of_utf8"]. *)
 
-val of_estring : EString.t -> t
-  (** [of_estring str] try to parse [str] as a unicode string.
+val utf8_length : t -> int
+  (** [length ustr] @return the number of bytes of the UTF8
+      representation of [ustr]. *)
 
-      @raise [Failure "EUnicode.of_estring"] if [str] does not contain
-      a valid unicode string *)
-
-val try_of_estring : EString.t -> [ `Success of t | `Failure of int * int * string ]
-  (** [try_of_estring str] same as [of_estring] but instead of raising
-      an exception, return a failure with:
+val try_of_utf8 : EString.t -> [ `Success of t | `Failure of int * int * string ]
+  (** [try_of_utf8 str] same as [of_utf8] but instead of raising an
+      exception, return a failure with:
 
       - the position in bytes in [str]
       - the number of unicode char successfully read
       - an error message *)
 
-val estring_prepend : t -> EString.t -> EString.t
-  (** [estring_prepend str acc] prepend the string representation of
-      [str] to [acc] *)
+val utf8_prepend : t -> EString.t -> EString.t
+  (** [utf8_prepend ustr acc] prepend the UTF8 representation of
+      [ustr] to [acc] *)
 
-val to_estring : t -> EString.t
-  (** [to_estring str] same as [estring_prepend str []] *)
+val to_utf8 : t -> EString.t
+  (** [to_utf8 str] same as [utf8_prepend str []] *)
 
 (** {6 Escaping} *)
 
-val estring_prepend_escaped : t -> EString.t -> EString.t
-  (** [estring_prepend_escaped str acc] prepend an escaped version of
-      [str] to [acc] *)
-
-val estring_escaped : t -> EString.t
-  (** [estring_escaped str] same as [estring_prepend_escaped str []] *)
-
 val prepend_escaped : t -> t -> t
-  (** [prepend_escaped str acc] prepend the escaped version of [str]
+  (** [prepend_escaped ustr acc] prepend the escaped version of [ustr]
       to [acc] *)
 
 val escaped : t -> t
-  (** [escaped str] same as [prepend_escaped str []] *)
+  (** [escaped ustr] same as [prepend_escaped str []] *)
 

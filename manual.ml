@@ -110,8 +110,9 @@ let str = e"abc"
 
 let str = ['a'; 'b'; 'c']
 
-(**  - [u]: it stands for ``unicode'', the string will be converted to
-       a list of unicode characters. Look at the unicode section for details.
+(**  - [u]: it stands for ``unicode'', the string must be a valid UTF8
+       string a will be converted to a list of unicode characters.
+       Look at the unicode section for details.
 
      - [U]: the string must contains only one unicode characters, and
        will be replaced by it.
@@ -166,18 +167,25 @@ let str = ['a'; 'b'; 'c']
     all integers are not valid unicode characters, this type is
     abstract, or private if using ocaml >= 3.11.
 
-    String defined with the specifier [u] will be checked at parsing
-    time then will be converted to a list integers like that:
+    Strings defined with the specifier [u] must be valid UTF8-encoded
+    unicode strings. They are checked at parsing time and will be converted
+    to a list integers like that:
 *)
 
-let ustr = u"Hello, world\n!"
+let ustr1 = u"Hello, world\n!"
 
 (** will become: *)
 
-let ustr =
+let ustr2 =
   (Obj.magic
      [ 0x48; 0x65; 0x6c; 0x6c; 0x6f; 0x2c; 0x20;
        0x77; 0x6f; 0x72; 0x6c; 0x64; 0x0a; 0x21 ] : EUChar.t list)
+
+(** Verification: *)
+
+let _ = match ustr1 = ustr2 with
+  | true -> print_estring "it works!\n"
+  | false -> print_estring "fail!!\n"
 
 (** Although, if you use ocaml >= 3.11 which support private types for
     any kind of types, {!EUChar.t} is defined as a private int, so it

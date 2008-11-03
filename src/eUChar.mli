@@ -14,77 +14,75 @@ type t = private int
 ELSE
 type t
 END
-   (** A unicode character, it can be written [U"X"] with [pa_estring]. *)
+  (** A unicode character, all code points from U+0000 to U+10FFFF are
+      allowed *)
+
+(** Note: unicode character can be written be written [U"X"] with
+    [pa_estring]. *)
 
 (** {6 Char manipulation} *)
 
 val is_ascii : t -> bool
   (** Tell weather a unicode character is an ascii character or not *)
 
-val length : t -> int
-  (** [length ch] @return the number of bytes taken by [ch]. It is one
-      of 1, 2, 3, 4 *)
+val is_latin1 : t -> bool
+  (** Tell weather a unicode character is a ISO8859-1 Latin-1
+      character or not *)
 
 val of_char : char -> t
-  (** [of_char ch] convert the ascii character [ch] to a unicode
-      character.
-
-      @raise [Invalid_argument "EUChar.of_char"] if [ch] is not an
-      ascii character. *)
+  (** [of_char ch] convert the ISO8859-1 Latin-1 character [ch] to a
+      unicode character *)
 
 val to_char : t -> char
-  (** Convert a unicode characte to an ascii char.
+  (** Convert a unicode character to an ISO8859-1 Latin-1 character.
 
-      @raise [Failure "EUChar.to_char"] if [ch] is not an ascii
-      character. *)
+      @raise [Failure "EUChar.to_char"] if [ch] is not an ISO8859-1
+      Latin-1 character. *)
 
-val of_int32 : int32 -> t
+val of_int : int -> t
   (** Create a unicode character from its integer code.
 
-      @raise [Invalid_argument "of_int32"] if the given code is not
+      @raise [Invalid_argument "of_int"] if the given code is not
       valid. *)
 
-val to_int32 : t -> int32
-  (** Return the code of a unicode character. *)
+external to_int : t -> int = "%identity"
+  (** Return the code point of a unicode character. *)
 
-val to_int : t -> int
-  (** @return the internal representation of a unicode character. *)
+val chr : int -> t
+  (** Same as {!of_int} *)
 
-val chr : int32 -> t
-  (** Same as [of_int32] *)
+external code : t -> int = "%identity"
+  (** Same as {!to_int} *)
 
-val code : t -> int32
-  (** Same as [to_int32] *)
+(** {6 UTF8} *)
 
-(** {6 Parsing/printing} *)
+val utf8_length : t -> int
+  (** [length ch] @return the number of bytes taken by hte UTF8
+      representation of [ch]. It is one of 1, 2, 3, 4 *)
 
-val next : EString.t -> t * EString.t
-  (** [next str] extract the first unicode char of [str] then return
+val utf8_next : EString.t -> t * EString.t
+  (** [utf8_next str] [str] must be a valid UTF8 string. It extract
+      the first UTF8-encoded unicode character of [str], then return
       it with the rest of [str].
 
-      @raise [Failure "EUChar.next"] if [str] do not begin with a
-      valid unicode character.
+      @raise [Failure "EUChar.utf8_next"] if [str] is not a valid UTF8
+      string.
 
-      @raise [Invalid_argument "EUChar.next"] if [str] is empty. *)
+      @raise [Invalid_argument "EUChar.utf8_next"] if [str] is
+      empty. *)
 
-val try_next : EString.t -> [ `Success of (t * EString.t) | `Failure of string ]
-  (** [try_next str] same as {!next} but instead of raising an
+val utf8_try_next : EString.t -> [ `Success of (t * EString.t) | `Failure of string ]
+  (** [utf8_try_next str] same as {!next} but instead of raising an
       exception, return a failure with an error message *)
 
-val estring_prepend : t -> EString.t -> EString.t
-  (** [estring_prepend ch str] add [ch] to [str] *)
+val utf8_prepend : t -> EString.t -> EString.t
+  (** [utf8_prepend ch str] prepend the UTF8 representation of [ch] to
+      [str] *)
 
-val to_estring : t -> EString.t
-  (** [to_string ch] same as [estring_prepend ch []] *)
+val to_utf8 : t -> EString.t
+  (** [to_string ch] same as [utf8_prepend ch []] *)
 
 (** {6 Escaping} *)
-
-val estring_prepend_escaped : t -> EString.t -> EString.t
-  (** [estring_prepend_escaped ch acc] prepend an escaped versiion of
-      [ch] to [acc] *)
-
-val estring_escaped : t -> EString.t
-  (** [estring_escaped ch] same as [estring_prepend_escaped ch []] *)
 
 val prepend_escaped : t -> t list -> t list
   (** [prepend_escaped ch acc] prepend an escaped version of [ch] to

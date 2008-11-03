@@ -48,13 +48,13 @@ type unicode = uchar list
         with the syntax extension *)
 
 val unicode_of_estring : estring -> unicode
-  (** Same as {!EUnicode.of_estring} *)
+  (** Same as {!EUnicode.of_utf8} *)
 
 val estring_of_unicode : unicode -> estring
-  (** Same as {!EUnicode.to_estring} *)
+  (** Same as {!EUnicode.to_utf8} *)
 
 val unicode : estring -> unicode
-  (** Same as [unicode_of_estring] *)
+  (** Same as {!unicode_of_estring} *)
 
 val uchar_of_char : char -> uchar
   (** Same as {!EUChar.of_char} *)
@@ -62,11 +62,11 @@ val uchar_of_char : char -> uchar
 val char_of_uchar : uchar -> char
   (** Same as {!EUChar.to_char} *)
 
-val uchar_of_int32 : int32 -> uchar
-  (** Same as {!EUChar.of_int32} *)
+val uchar_of_int : int -> uchar
+  (** Same as {!EUChar.of_int} *)
 
-val int32_of_uchar : uchar -> int32
-  (** Same as {!EUChar.to_int32} *)
+external int_of_uchar : uchar -> int = "%identity"
+  (** Same as {!EUChar.to_int} *)
 
 (** {6 Output functions} *)
 

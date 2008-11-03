@@ -9,47 +9,44 @@
 
 type t = EUChar.t list
 
-let rec length_rec acc = function
+let rec utf8_length_rec acc = function
   | [] -> acc
-  | x :: l -> length_rec (acc + EUChar.length x) l
+  | x :: l -> utf8_length_rec (acc + EUChar.utf8_length x) l
 
-let length l = length_rec 0 l
+let utf8_length l = utf8_length_rec 0 l
 
 let rec parse_utf8 = function
   | [] -> []
   | l ->
-      let ch, rest = EUChar.next l in
+      let ch, rest = EUChar.utf8_next l in
       ch :: parse_utf8 rest
 
-let of_estring l =
+let of_utf8 l =
   try
     parse_utf8 l
   with
-      _ -> failwith "EUnicode.of_estring"
+      _ -> failwith "EUnicode.of_utf8"
 
-let rec try_of_estring_rec pos real_pos = function
+let rec try_of_utf8_rec pos real_pos = function
     | [] -> `Success []
     | l ->
-        match EUChar.try_next l with
+        match EUChar.utf8_try_next l with
           | `Success(ch, rest) ->
-              begin match try_of_estring_rec (pos + 1) (real_pos + EUChar.length ch) rest with
+              begin match try_of_utf8_rec (pos + 1) (real_pos + EUChar.utf8_length ch) rest with
                 | `Success l -> `Success(ch :: l)
                 | `Failure _ as f -> f
               end
           | `Failure msg ->
               `Failure (real_pos, pos, msg)
 
-let try_of_estring l = try_of_estring_rec 0 0 l
+let try_of_utf8 l = try_of_utf8_rec 0 0 l
 
-let rec to_estring = function
+let rec to_utf8 = function
   | [] -> []
-  | ch :: l -> EUChar.estring_prepend ch (to_estring l)
+  | ch :: l -> EUChar.utf8_prepend ch (to_utf8 l)
 
-let estring_prepend l acc = List.fold_right EUChar.estring_prepend l acc
-let to_estring l = estring_prepend l []
-
-let estring_prepend_escaped l acc = List.fold_right EUChar.estring_prepend_escaped l acc
-let estring_escaped l = estring_prepend_escaped l []
+let utf8_prepend l acc = List.fold_right EUChar.utf8_prepend l acc
+let to_estring l = utf8_prepend l []
 
 let prepend_escaped l acc = List.fold_right EUChar.prepend_escaped l acc
 let escaped l = prepend_escaped l []

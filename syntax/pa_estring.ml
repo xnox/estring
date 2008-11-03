@@ -82,28 +82,29 @@ let uchar_patt loc uch = fail loc
 
 END
 
-(* [parse_unicode_rec ll l] parse an estring as an utf8 string. [l] is
-   the estring and [ll] is the corresponding llist of chars *)
-let rec parse_unicode_rec ll = function
+(* [parse_utf8_rec ll l] parse an estring as an UTF8-encoded unicode
+   string. [l] is the estring and [ll] is the corresponding llist of
+   chars *)
+let rec parse_utf8_rec ll = function
   | [] -> Nil(loc_of_llist ll)
-  | l -> match EUChar.try_next l with
+  | l -> match EUChar.utf8_try_next l with
       | `Success(uch, l) ->
-          Cons(loc_of_llist ll, uch, parse_unicode_rec (ldrop (EUChar.length uch) ll) l)
+          Cons(loc_of_llist ll, uch, parse_utf8_rec (ldrop (EUChar.utf8_length uch) ll) l)
       | `Failure msg ->
           Loc.raise (loc_of_llist ll)
             (Stream.Error
                (sprintf "failed to decode unicode string: %s" msg))
 
-let parse_unicode ll = parse_unicode_rec ll (list_of_llist ll)
+let parse_utf8 ll = parse_utf8_rec ll (list_of_llist ll)
 
-(* [parse_uchar ll] parse a string containing exactly one unicode
-   character *)
-let parse_uchar ll =
+(* [parse_uchar ll] parse a string containing exactly one UTF8-encoded
+   unicode character *)
+let parse_utf8_char ll =
   let l = list_of_llist ll in
-  match EUChar.try_next l with
+  match EUChar.utf8_try_next l with
     | `Success(uch, []) -> uch
     | `Success(uch, _) ->
-        Loc.raise (loc_of_llist (ldrop (EUChar.length uch) ll))
+        Loc.raise (loc_of_llist (ldrop (EUChar.utf8_length uch) ll))
           (Stream.Error "data remaining after unicode character")
     | `Failure msg ->
         Loc.raise (loc_of_llist ll)
@@ -404,8 +405,8 @@ let handle_specifier_error = function
    annotated string *)
 let expr_of_annotated_string = function
   | Cons(_loc, 'e', l) -> estring_expr l
-  | Cons(_loc, 'u', l) -> unicode_expr (parse_unicode l)
-  | Cons(_loc, 'U', l) -> uchar_expr _loc (parse_uchar l)
+  | Cons(_loc, 'u', l) -> unicode_expr (parse_utf8 l)
+  | Cons(_loc, 'U', l) -> uchar_expr _loc (parse_utf8_char l)
   | Cons(_loc, 'n', l) -> <:expr< $str:String.escaped (string_of_estring (list_of_llist l))$ >>
   | Cons(_loc, 'p', l) -> safe_make_format print_mapper l
   | Cons(_loc, 's', l) -> safe_make_format scan_mapper l
@@ -415,8 +416,8 @@ let expr_of_annotated_string = function
    annotated string *)
 let patt_of_annotated_string = function
   | Cons(_loc, 'e', l) -> estring_patt l
-  | Cons(_loc, 'u', l) -> unicode_patt (parse_unicode l)
-  | Cons(_loc, 'U', l) -> uchar_patt _loc (parse_uchar l)
+  | Cons(_loc, 'u', l) -> unicode_patt (parse_utf8 l)
+  | Cons(_loc, 'U', l) -> uchar_patt _loc (parse_utf8_char l)
   | Cons(_loc, 'n', l) -> <:patt< $str:String.escaped (string_of_estring (list_of_llist l))$ >>
   | Cons(_loc, ('p' | 's'), _) -> Loc.raise _loc (Stream.Error "format string are not allowed in pattern")
   | l -> handle_specifier_error l

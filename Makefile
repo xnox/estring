@@ -19,7 +19,10 @@ MODULES = eChar eList ePrintf eString eString_pervasives eUChar eUnicode
 .PHONY: all clean lib lib-byte lib-native test test-error-loc install just-install uninstall
 
 all:
-	$(OC) $(LIB:=.cma) $(LIB:=.cmxa) $(TEST:%=test/%.d.byte) estring.docdir/index.html
+	$(OC) $(LIB:=.cma) $(LIB:=.cmxa) \
+	  $(TEST:%=test/%.d.byte) \
+	  estring.docdir/index.html \
+	  manual.cmo
 
 # +------------------+
 # | Specific targets |

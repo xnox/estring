@@ -7,101 +7,112 @@
  * This file is a part of estring.
  *)
 
-(* Unicode characters which have a length smaller or equal to 3 are
-   internally represented by their code, and four-byte unicode
-   characters are taken modulo 2^31 *)
-
 type t = int
 
-let is_ascii x = (x land 0x7fffff80) = 0
+external to_int : t -> int = "%identity"
+external code : t -> int = "%identity"
 
-let length x =
-  if x land 0x7fffff80 = 0x00000000 then
-    1
-  else if x land 0x7fffe0c0 = 0x0000c080 then
-    2
-  else if x land 0x7ff0c0c0 = 0x00e08080 then
-    3
-  else
-    4
+let is_ascii x = (x land (lnot 0x7f)) = 0
+let is_latin1 x = (x land (lnot 0xff)) = 0
 
 let to_char x =
-  if is_ascii x then
+  if is_latin1 x then
     Char.unsafe_chr x
   else
     failwith "EUChar.to_char"
 
-let of_char x =
-  let n = Char.code x in
-  if is_ascii n then
-    n
+let of_char x = Char.code x land 0xff
+
+let of_int x =
+  if x < 0 || x > 0x10ffff then
+    invalid_arg "EUChar.of_int"
   else
-    invalid_arg "EUChar.to_char"
+    x
 
-let to_int x = x
+let chr = of_int
 
-let to_int32 x =
-  if x land 0x40000000 <> 0 then
-    Int32.logor (Int32.of_int x) 0x80000000l
+let utf8_length x =
+  (* 7-bits code points *)
+  if x < 0x80 then
+    1
+
+  (* 11-bits code points *)
+  else if x <= 0x800 then
+    2
+
+  (* 16-bits code points *)
+  else if x <= 0x10000 then
+    3
+
+  (* 21-bits code points *)
   else
-    Int32.of_int x
+    4
 
-let of_int32 x =
-  if Int32.logand x 0xffffff80l = 0x00000000l then
-    Int32.to_int x
-  else if Int32.logand x 0xffffe0c0l = 0x0000c080l then
-    Int32.to_int x
-  else if Int32.logand x 0xfff0c0c0l = 0x00e08080l then
-    Int32.to_int x
-  else if Int32.logand x 0xf8c0c0c0l = 0xf0808080l then
-    (Int32.to_int x) land 0x7fffffff
-  else
-    invalid_arg "EUChar.of_int32"
+(* [utf8_trail minimum acc count l]
 
-let chr = of_int32
-let code = to_int32
+   fetch [count] trailing bytes from [l] (of the form 0b10xxxxxx) and
+   add them to [acc].
 
-let rec trail acc count l = match count, l with
+   [minimum] is the minimum value for the resulting code points, this
+   is to reject overlong UTF8-encoded code points.
+
+   For example:
+
+   0b11000001 0b10abcdef
+
+   can also be represented by:
+
+   0b01abcdef
+
+   So it is overlong.
+*)
+let rec utf8_trail minimum acc count l = match count, l with
   | 0, l ->
-      (acc, l)
+      if acc < minimum then
+        failwith "EUChar.utf8_next"
+      else
+        (acc, l)
   | _, ch :: l ->
       let n = Char.code ch in
       if n land 0xc0 = 0x80 then
-        trail ((acc lsl 8) lor n) (count - 1) l
+        utf8_trail minimum ((acc lsl 6) lor (n land 0x3f)) (count - 1) l
       else
-        failwith "EUChar.next"
+        failwith "EUChar.utf8_next"
   | _, [] ->
-      failwith "EUChar.next"
+      failwith "EUChar.utf8_next"
 
-let next = function
+let utf8_next = function
   | [] ->
-      invalid_arg "EUChar.next"
+      invalid_arg "EUChar.utf8_next"
   | ch :: l ->
       let n = Char.code ch in
       if n land 0x80 = 0 then
         (n, l)
       else if n land 0xe0 = 0xc0 then
-        trail n 1 l
+        utf8_trail 0x80 n 1 l
       else if n land 0xf0 = 0xe0 then
-        trail n 2 l
+        utf8_trail 0x800 n 2 l
       else if n land 0xf8 = 0xf0 then
-        trail (n land 0x7f) 3 l
+        utf8_trail 0x10000 (n land 0x7f) 3 l
       else
-        failwith "EUChar.next"
+        failwith "EUChar.utf8_next"
 
-let rec try_trail total acc count l = match count, l with
+let rec utf8_try_trail minimum total acc count l = match count, l with
   | 0, l ->
-      `Success(acc, l)
+      if acc < minimum then
+        `Failure(Printf.sprintf "overlong %d-bytes character" total)
+      else
+        `Success(acc, l)
   | _, ch :: l ->
       let n = Char.code ch in
       if n land 0xc0 = 0x80 then
-        try_trail total ((acc lsl 8) lor n) (count - 1) l
+        utf8_try_trail minimum total ((acc lsl 6) lor (n land 0x3f)) (count - 1) l
       else
-        `Failure (Printf.sprintf "invalid trailing code(%d/%d): 0x%02x" (total - count + 1) total n)
+        `Failure(Printf.sprintf "invalid trailing code(%d/%d): 0x%02x" (total - count + 1) total n)
   | _, [] ->
-      `Failure (Printf.sprintf "missing trailing code(%d/%d)" (total - count + 1) total)
+      `Failure(Printf.sprintf "missing trailing code(%d/%d)" (total - count + 1) total)
 
-let try_next = function
+let utf8_try_next = function
   | [] ->
       `Failure "empty string"
   | ch :: l ->
@@ -109,30 +120,27 @@ let try_next = function
       if n land 0x80 = 0 then
         `Success(n, l)
       else if n land 0xe0 = 0xc0 then
-        try_trail 1 n 1 l
+        utf8_try_trail 0x80 1 n 1 l
       else if n land 0xf0 = 0xe0 then
-        try_trail 2 n 2 l
+        utf8_try_trail 0x800 1 n 2 l
       else if n land 0xf8 = 0xf0 then
-        try_trail 3 (n land 0x7f) 3 l
+        utf8_try_trail 0x10000 1 (n land 0x7f) 3 l
       else
-        `Failure (Printf.sprintf "invalid code: 0x%02x" n)
+        `Failure(Printf.sprintf "invalid code: 0x%02x" n)
 
 let mkch = Char.unsafe_chr
 
-let estring_prepend x l =
-  if x land 0x7fffff80 = 0x00000000 then
+let utf8_prepend x l =
+  if x < 0x80 then
     mkch x :: l
-  else if x land 0x7fffe0c0 = 0x0000c080 then
-    mkch (x lsr 8) :: mkch (x land 0xff) :: l
-  else if x land 0x7ff0c0c0 = 0x00e08080 then
-    mkch (x lsr 16) :: mkch ((x lsr 8) land 0xff) :: mkch (x land 0xff) :: l
-  else if x land 0x78c0c0c0 = 0x70808080 then
-    mkch ((x lsr 24) lor 0x80) :: mkch ((x lsr 16) land 0xff) :: mkch ((x lsr 8) land 0xff) :: mkch (x land 0xff) :: l
+  else if x <= 0x800 then
+    mkch ((x lsr 6) lor 0xc0) :: mkch ((x land 0x3f) lor 0x80) :: l
+  else if x <= 0x10000 then
+    mkch ((x lsr 12) lor 0xe0) :: mkch (((x lsr 6) land 0x3f) lor 0x80) :: mkch ((x land 0x3f) lor 0x80) :: l
   else
-    (* This would never happen if we do not use Obj.magic *)
-    assert false
+    mkch ((x lsr 18) lor 0xf0) :: mkch (((x lsr 12) land 0x3f) lor 0xe0) :: mkch (((x lsr 6) land 0x3f) lor 0x80) :: mkch ((x land 0x3f) lor 0x80) :: l
 
-let to_estring ch = estring_prepend ch []
+let to_utf8 ch = utf8_prepend ch []
 
 external is_printable : char -> bool = "caml_is_printable"
 
@@ -153,9 +161,6 @@ let rec prepend_escaped_rec rest = function
         :: 48 + n mod 10
         :: prepend_escaped_rec rest l
 
-let prepend_escaped ch acc = prepend_escaped_rec acc (to_estring ch)
+let prepend_escaped ch acc = prepend_escaped_rec acc (to_utf8 ch)
 
 let escaped ch = prepend_escaped ch []
-
-let estring_prepend_escaped ch acc = EString.prepend_escaped (to_estring ch) acc
-let estring_escaped ch = EString.escaped (to_estring ch)

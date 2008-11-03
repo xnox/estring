@@ -38,17 +38,17 @@ let print_estring l = List.iter print_char l
 let prerr_estring l = List.iter print_char l
 let output_estring oc l = List.iter (output_char oc) l
 
-let print_unicode l = List.iter (fun ch -> print_estring (EUChar.to_estring ch)) l
-let prerr_unicode l = List.iter (fun ch -> prerr_estring (EUChar.to_estring ch)) l
-let output_unicode oc l = List.iter (fun ch -> output_estring oc (EUChar.to_estring ch)) l
+let print_unicode l = List.iter (fun ch -> print_estring (EUChar.to_utf8 ch)) l
+let prerr_unicode l = List.iter (fun ch -> prerr_estring (EUChar.to_utf8 ch)) l
+let output_unicode oc l = List.iter (fun ch -> output_estring oc (EUChar.to_utf8 ch)) l
 
 let uchar_of_char = EUChar.of_char
 let char_of_uchar = EUChar.to_char
-let uchar_of_int32 = EUChar.of_int32
-let int32_of_uchar = EUChar.to_int32
+let uchar_of_int = EUChar.of_int
+external int_of_uchar : uchar -> int = "%identity"
 
-let unicode_of_estring = EUnicode.of_estring
-let estring_of_unicode = EUnicode.to_estring
+let unicode_of_estring = EUnicode.of_utf8
+let estring_of_unicode = EUnicode.to_utf8
 
 let unicode = unicode_of_estring
 
@@ -72,8 +72,8 @@ let print__ns = print__s
 let print__nS = print__S
 let print__any = { print = fun cont out acc _ -> print__s.print cont out acc "<abstract>" }
 
-let printuc out ch acc = fold out.add acc (EUChar.to_estring ch)
-let printuC out ch acc = fold out.add acc (EUChar.estring_escaped ch)
+let printuc out ch acc = fold out.add acc (EUChar.to_utf8 ch)
+let printuC out ch acc = fold out.add acc (EUnicode.to_utf8 (EUChar.escaped ch))
 
 let print__uc = { print = fun cont out acc ch -> cont (printuc out ch acc) }
 let print__uC = { print = fun cont out acc ch -> cont (out.add '\'' ((printuC out ch (out.add '\'' acc)))) }
