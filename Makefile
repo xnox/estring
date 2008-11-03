@@ -11,9 +11,10 @@ PREFIX = /usr/local
 
 # Targets
 LIB = estring
-TEST = test
+TEST = test test_unicode test_default
+TEST_ERROR_LOC_COUNT = 6
 
-.PHONY: all clean lib lib-byte lib-native test
+.PHONY: all clean lib lib-byte lib-native test test-error-loc
 
 all: lib
 
@@ -32,6 +33,11 @@ lib:
 
 test:
 	$(OC) $(TEST:%=test/%.d.byte)
+
+test-error-loc:
+	for i in `seq 1 $(TEST_ERROR_LOC_COUNT)`; do \
+	  $(OC) test/test_error_loc/test$$i.cmo || true; \
+	done
 
 # +-------+
 # | Other |

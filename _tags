@@ -6,5 +6,5 @@
 # Specific rules
 <syntax/*>: pkg_camlp4.lib, pkg_camlp4.quotations.o, pkg_camlp4.macro, use_estring
 <src/*.ml{,i}>: pkg_camlp4.macro
-<test/*.ml{,i}>: pa_estring
-<test/*>: use_estring
+<test/**/*.ml{,i}>: pa_estring, pkg_camlp4.macro
+<test/**/*>: use_estring
