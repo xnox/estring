@@ -15,15 +15,151 @@ open EString_pervasives
    | Utils |
    +-------+ *)
 
-let unescape = Camlp4.Struct.Token.Eval.string ~strict:()
+(* List with locations *)
+type 'a llist =
+  | Nil of Loc.t
+  | Cons of Loc.t * 'a * 'a llist
 
-(* [estring_expr loc l] @return the expression representing the list
-   of chars [l] *)
-let estring_expr _loc l = List.fold_right (fun ch acc -> <:expr< $chr:Char.escaped ch$ :: $acc$ >>) l <:expr< [] >>
+let loc_of_llist = function
+  | Nil loc -> loc
+  | Cons(loc, x, l) -> loc
 
-(* [estring_patt loc l] @return the pattern representing the list of
+let rec foldr f g = function
+  | Nil loc -> g loc
+  | Cons(loc, x, l) -> f loc x (foldr f g l)
+
+let rec list_of_llist = function
+  | Nil _ -> []
+  | Cons(_, x, l) -> x :: list_of_llist l
+
+let rec ldrop n l =
+  if n <= 0 then
+    l
+  else match l with
+    | Cons(_, _, l) -> ldrop (n - 1) l
+    | l -> l
+
+(* [estring_expr l] @return the expression representing the list of
    chars [l] *)
-let estring_patt _loc l = List.fold_right (fun ch acc -> <:patt< $chr:Char.escaped ch$ :: $acc$ >>) l <:patt< [] >>
+let estring_expr l = foldr (fun _loc ch acc -> <:expr< $chr:Char.escaped ch$ :: $acc$ >>) (fun _loc -> <:expr< [] >>) l
+
+(* [estring_patt l] @return the pattern representing the list of
+   chars [l] *)
+let estring_patt l = foldr (fun _loc ch acc -> <:patt< $chr:Char.escaped ch$ :: $acc$ >>) (fun _loc -> <:patt< [] >>) l
+
+(* [unicode_expr l] @return the expression representing the list
+   of unicode characters [l] *)
+let unicode_expr l =
+  let e = foldr begin fun _loc ch acc ->
+    <:expr< $int:sprintf "0x%x" (EUChar.to_int ch)$ :: $acc$ >>
+  end (fun _loc -> <:expr< [] >>) l in
+  (* Here we know that the characters are correct so we can use
+     Obj.magic safely *)
+  let _loc = loc_of_llist l in
+  <:expr< (Obj.magic $e$ : EUChar.t list) >>
+
+IFDEF HAVE_PRIVATE THEN
+
+(* [unicode_patt l] @return the pattern representing the list of
+   unicode characters [l] *)
+let unicode_patt l = foldr begin fun _loc ch acc ->
+  <:patt< $int:sprintf "0x%x" (EUChar.to_int ch)$ :: $acc$ >>
+end (fun _loc -> <:patt< [] >>) l
+
+ELSE
+
+(* If we do not have private types, then [UChar.t] is an abstract type
+   and matching is not possible :( *)
+let unicode_patt l = Loc.raise (loc_of_llist l) (Stream.Error "you need ocaml >= 3.11 to use unicode in patterns")
+
+END
+
+(* [parse_unicode_rec ll l] parse an estring as an utf8 string. [l] is
+   the estring and [ll] is the corresponding llist of chars *)
+let rec parse_unicode_rec ll = function
+  | [] -> Nil(loc_of_llist ll)
+  | l -> match EUChar.try_next l with
+      | `Success(uch, l) ->
+          Cons(loc_of_llist ll, uch, parse_unicode_rec (ldrop (EUChar.length uch) ll) l)
+      | `Failure msg ->
+          Loc.raise (loc_of_llist ll)
+            (Stream.Error
+               (sprintf "failed to decode unicode string: %s" msg))
+
+let parse_unicode ll = parse_unicode_rec ll (list_of_llist ll)
+
+(* +--------------------+
+   | Strings unescaping |
+   +--------------------+ *)
+
+(* String appears in the camlp4 ast as they apears in the source
+   code. So if we want to process a string then we need to first
+   unescape it. Camlp4 provide such a function
+   (Camlp4.Struct.Token.Eval.string) but the problem is that we do not
+   know exactly the location of unescaped characters:
+
+   For instance: "\tx\tA" will be unescaped in " x A", and the
+   position of "A" in the resulting string will be changed.
+
+   So here is an implementation of an unescaping function which also
+   compute the location of each unescaped characters. *)
+
+module Unescape =
+struct
+  let add n loc = Loc.move `start n loc
+  let inc loc = add 1 loc
+  let addl n loc = Loc.move_line n loc
+  let incl loc = addl 1 loc
+  let resetl loc = addl 0 loc
+
+  let dec x = Char.code x - Char.code '0'
+  let hex = function
+    | '0'..'9' as x -> Char.code x - Char.code '0'
+    | 'a'..'f' as x -> Char.code x - Char.code 'a' + 10
+    | 'A'..'F' as x -> Char.code x - Char.code 'A' + 10
+    | x -> assert false
+
+  let rec skip_indent cont loc = function
+    | (' ' | '\t') :: l -> skip_indent cont (inc loc) l
+    | l -> cont loc l
+
+  let skip_opt_linefeed cont loc = function
+    | '\n' :: l -> cont (incl loc) l
+    | l -> cont loc l
+
+  let rec string loc = function
+    | [] -> Nil loc
+    | '\\' :: l ->
+        let loc = inc loc in
+        begin match l with
+          | '\n' :: l -> skip_indent string (incl loc) l
+          | '\r' :: l -> skip_opt_linefeed (skip_indent string) (resetl loc) l
+          | 'n' :: l -> Cons(loc, '\n', string (inc loc) l)
+          | 'r' :: l -> Cons(loc, '\r', string (inc loc) l)
+          | 't' :: l -> Cons(loc, '\t', string (inc loc) l)
+          | 'b' :: l -> Cons(loc, '\b', string (inc loc) l)
+          | '\\' :: l -> Cons(loc, '\\', string (inc loc) l)
+          | '"' :: l  -> Cons(loc, '"', string (inc loc) l)
+          | '\'' :: l -> Cons(loc, '\'', string (inc loc) l)
+          | ' ' :: l -> Cons(loc, ' ', string (inc loc) l)
+          | ('0'..'9' as c1) :: ('0'..'9' as c2) :: ('0'..'9' as c3) :: l ->
+              Cons(loc,
+                   char_of_int (100 * (dec c1) + 10 * (dec c2) + (dec c3)),
+                   string (add 3 loc) l)
+          | 'x'
+            :: ('0'..'9' | 'a'..'f' | 'A'..'F' as c1)
+            :: ('0'..'9' | 'a'..'f' | 'A'..'F' as c2) :: l ->
+              Cons(loc,
+                   char_of_int (16 * (hex c1) + (hex c2)),
+                   string (add 3 loc) l)
+          | _ -> Loc.raise loc (Stream.Error "illegal backslash")
+        end
+    | '\r' :: l -> Cons(loc, '\r', string (resetl loc) l)
+    | '\n' :: l -> Cons(loc, '\n', string (incl loc) l)
+    | ch :: l -> Cons(loc, ch, string (inc loc) l)
+end
+
+let unescape = Unescape.string
 
 (* +--------------------+
    | String annotations |
@@ -75,11 +211,11 @@ let make_annotated_stream stm =
 
         | LIDENT id when String.length id = 1 && prev <> KEYWORD "." ->
             begin match Stream.peek stm with
-              | Some(STRING(s, orig), loc') ->
+              | Some(STRING(s, orig), loc) ->
                   begin match id with
                     | "e" | "n" | "u" | "p" | "s" ->
                         Stream.junk stm;
-                        Some(STRING(id ^ s, id ^ orig), loc')
+                        Some(STRING(id ^ s, id ^ orig), loc)
                     | _ ->
                         Loc.raise loc
                           (Stream.Error
@@ -127,107 +263,109 @@ let scan_mapper = prefix_ident "scan"
    | Format string parsing |
    +-----------------------+ *)
 
-exception Premature_end
-exception Premature_long_spec_end
-exception Invalid_conversion_char of char
+exception Premature_end of Loc.t
+exception Premature_long_spec_end of Loc.t
+exception Invalid_conversion_char of Loc.t * char
 
 (* [get_long_spec deep l] try to extract the long specification ending
    in [l], [deep] being the numbre of '{' not yet closed.
 
    It return the long specification and the rest of [l] *)
 let rec get_long_spec deep = function
-  | [] ->
-      raise Premature_long_spec_end
-  | ['%'] ->
-      raise Premature_end
-  | '%' :: ch :: rest ->
+  | Nil loc ->
+      raise (Premature_long_spec_end loc)
+  | Cons(_, '%', Nil loc) ->
+      raise (Premature_end loc)
+  | Cons(_, '%', Cons(_, x, rest)) ->
       let spec, rest = get_long_spec deep rest in
-      ('%' :: ch :: spec, rest)
-  | '}' :: rest ->
+      ('%' :: x :: spec, rest)
+  | Cons(_, '}', rest) ->
       if deep = 0 then
         ([], rest)
       else
         let spec, rest = get_long_spec (deep - 1) rest in
         ('}' :: spec, rest)
-  | '{' :: rest ->
+  | Cons(_, '{', rest) ->
       let spec, rest = get_long_spec (deep + 1) rest in
       ('{' :: spec, rest)
-  | ch :: rest ->
+  | Cons(_, ch, rest) ->
       let spec, rest = get_long_spec deep rest in
       (ch :: spec, rest)
 
-(* [get_const_and_spec mapper loc l] read the constant part of [l],
+(* [get_const_and_spec mapper l] read the constant part of [l],
    i.e. the part without conversion specification, then read one
    conversion specification if available and return the constant part,
    the specification and the rest.
 
    [mapper] is used to map long specification expression. It is either
    [print_mapper] or [scan_mapper] *)
-let rec get_const_and_spec mapper _loc = function
-  | [] ->
+let rec get_const_and_spec mapper = function
+  | Nil _ ->
       ([], None)
 
-  | '%' :: l -> begin match l with
-      | ('a'..'z' | 'A'..'Z' as ch1) :: ('a'..'z' | 'A'..'Z' as ch2) :: l ->
+  | Cons(_loc, '%', l) -> begin match l with
+      | Cons(_, ('a'..'z' | 'A'..'Z' as ch1), Cons(_, ('a'..'z' | 'A'..'Z' as ch2), l)) ->
           ([], Some(<:expr< $lid:sprintf "print__%c%c" ch1 ch2$ >>, l))
 
-      | ('a'..'z' | 'A'..'Z' as ch) :: l ->
+      | Cons(_, ('a'..'z' | 'A'..'Z' as ch), l) ->
           ([], Some(<:expr< $lid:sprintf "print__%c" ch$ >>, l))
 
-      | '!' :: l ->
+      | Cons(_, '!', l) ->
           ([], Some(<:expr< EPrintf.print__flush >>, l))
 
-      | ('{' | '}' | '%' as ch) :: l ->
-          let const, next = get_const_and_spec mapper _loc l in
+      | Cons(_, ('{' | '}' | '%' as ch), l) ->
+          let const, next = get_const_and_spec mapper l in
           (ch :: const, next)
 
-      | ch :: l ->
-          raise (Invalid_conversion_char ch)
+      | Cons(loc, ch, l) ->
+          raise (Invalid_conversion_char(loc, ch))
 
-      | [] ->
-          raise Premature_end
+      | Nil loc ->
+          raise (Premature_end loc)
     end
 
-  | '{' :: l ->
+  | Cons(_, '{', l) ->
       let spec, rest = get_long_spec 0 l in
-      let e_spec = mapper#expr (Gram.parse Syntax.expr_eoi _loc (Stream.of_list spec)) in
+      let e_spec = mapper#expr (Gram.parse Syntax.expr_eoi (loc_of_llist l) (Stream.of_list spec)) in
       ([], Some(e_spec, rest))
 
-  | ch :: l ->
-      let const, next = get_const_and_spec mapper _loc l in
+  | Cons(_, ch, l) ->
+      let const, next = get_const_and_spec mapper l in
       (ch :: const, next)
 
-(* [nconst_expr loc l] expression for a constant string printer *)
+(* [nconst_expr _loc l] expression for a constant string printer *)
 let nconst_expr _loc l = <:expr< EPrintf.nconst $str:String.escaped (string_of_estring l)$ >>
 
-(* [make_format mapper loc l] create a format expression from a format
+(* [make_format mapper l] create a format expression from a format
    string *)
-let rec make_format mapper _loc l = match get_const_and_spec mapper _loc l with
-  | [], None ->
-      <:expr< EPrintf.nil >>
-  | [], Some(espec, []) ->
-      espec
-  | [], Some(espec, rest) ->
-      <:expr< EPrintf.cons $espec$ $make_format mapper _loc rest$ >>
-  | l, None ->
-      nconst_expr _loc l
-  | l, Some(espec, []) ->
-      <:expr< EPrintf.cons $nconst_expr _loc l$ $espec$ >>
-  | l, Some(espec, rest) ->
-      <:expr< EPrintf.cons $nconst_expr _loc l$
-                (EPrintf.cons $espec$ $make_format mapper _loc rest$) >>
+let rec make_format mapper l =
+  let _loc = loc_of_llist l in
+  match get_const_and_spec mapper l with
+    | [], None ->
+        <:expr< EPrintf.nil >>
+    | [], Some(espec, Nil _) ->
+        espec
+    | [], Some(espec, rest) ->
+        <:expr< EPrintf.cons $espec$ $make_format mapper rest$ >>
+    | l, None ->
+        nconst_expr _loc l
+    | l, Some(espec, Nil _) ->
+        <:expr< EPrintf.cons $nconst_expr _loc l$ $espec$ >>
+    | l, Some(espec, rest) ->
+        <:expr< EPrintf.cons $nconst_expr _loc l$
+                 (EPrintf.cons $espec$ $make_format mapper rest$) >>
 
 (* Handle format parsing error *)
-let safe_make_format mapper loc l =
+let safe_make_format mapper l =
   try
-    make_format mapper loc l
+    make_format mapper l
   with
-    | Premature_end ->
-        Loc.raise loc (Stream.Error (sprintf "Premature end of format string %S" (string_of_estring l)))
-    | Premature_long_spec_end ->
-        Loc.raise loc (Stream.Error (sprintf "'}' missing in format string %S" (string_of_estring l)))
-    | Invalid_conversion_char ch ->
-        Loc.raise loc (Stream.Error (sprintf "invalid conversion specification character %C in string %S" ch (string_of_estring l)))
+    | Premature_end loc ->
+        Loc.raise loc (Stream.Error "premature end of format")
+    | Premature_long_spec_end loc ->
+        Loc.raise loc (Stream.Error "'}' missing in format")
+    | Invalid_conversion_char(loc, ch) ->
+        Loc.raise loc (Stream.Error (Printf.sprintf "invalid conversion specification character: %C" ch))
 
 (* +--------------------+
    | Strings conversion |
@@ -235,36 +373,38 @@ let safe_make_format mapper loc l =
 
 (* Handle missing or unknown specifiers, this is only for debugging
    purpose since it should never happen *)
-let handle_specifier_error loc = function
-  | ch :: _ -> Loc.raise loc (Stream.Error (sprintf "unknown specifier %C" ch))
-  | [] -> Loc.raise loc (Stream.Error (sprintf "specifier missing"))
+let handle_specifier_error = function
+  | Cons(loc, ch, _) -> Loc.raise loc (Stream.Error (sprintf "unknown specifier %C" ch))
+  | Nil loc -> Loc.raise loc (Stream.Error (sprintf "specifier missing"))
 
-(* [expr_of_annotated_string _loc l] create an expression from an
+(* [expr_of_annotated_string l] create an expression from an
    annotated string *)
-let expr_of_annotated_string _loc = function
-  | 'e' :: l -> estring_expr _loc l
-  | 'n' :: l -> <:expr< $str:String.escaped (string_of_estring l)$ >>
-  | 'p' :: l -> safe_make_format print_mapper _loc l
-  | 's' :: l -> safe_make_format scan_mapper _loc l
-  | l -> handle_specifier_error _loc l
+let expr_of_annotated_string = function
+  | Cons(_loc, 'e', l) -> estring_expr l
+  | Cons(_loc, 'u', l) -> unicode_expr (parse_unicode l)
+  | Cons(_loc, 'n', l) -> <:expr< $str:String.escaped (string_of_estring (list_of_llist l))$ >>
+  | Cons(_loc, 'p', l) -> safe_make_format print_mapper l
+  | Cons(_loc, 's', l) -> safe_make_format scan_mapper l
+  | l -> handle_specifier_error l
 
-(* [expr_of_annotated_string _loc l] create an pattern from an
+(* [expr_of_annotated_string l] create an pattern from an
    annotated string *)
-let patt_of_annotated_string _loc = function
-  | 'e' :: l -> estring_patt _loc l
-  | 'n' :: l -> <:patt< $str:String.escaped (string_of_estring l)$ >>
-  | ('p' | 's') :: _ -> Loc.raise _loc (Stream.Error "format string are not allowed in pattern")
-  | l -> handle_specifier_error _loc l
+let patt_of_annotated_string = function
+  | Cons(_loc, 'e', l) -> estring_patt l
+  | Cons(_loc, 'u', l) -> unicode_patt (parse_unicode l)
+  | Cons(_loc, 'n', l) -> <:patt< $str:String.escaped (string_of_estring (list_of_llist l))$ >>
+  | Cons(_loc, ('p' | 's'), _) -> Loc.raise _loc (Stream.Error "format string are not allowed in pattern")
+  | l -> handle_specifier_error l
 
 let map = object
   inherit Ast.map as super
 
   method expr e = match super#expr e with
-    | <:expr@loc< $str:s$ >> -> expr_of_annotated_string loc (estring_of_string (unescape s))
+    | <:expr@loc< $str:s$ >> -> expr_of_annotated_string (unescape loc (estring_of_string s))
     | e -> e
 
   method patt p = match super#patt p with
-    | <:patt@loc< $str:s$ >> -> patt_of_annotated_string loc (estring_of_string (unescape s))
+    | <:patt@loc< $str:s$ >> -> patt_of_annotated_string (unescape loc (estring_of_string s))
     | p -> p
 end
 
