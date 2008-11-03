@@ -15,7 +15,6 @@ open EString_pervasives
    | Utils |
    +-------+ *)
 
-(* List with locations *)
 type 'a llist =
   | Nil of Loc.t
   | Cons of Loc.t * 'a * 'a llist
@@ -24,9 +23,15 @@ let loc_of_llist = function
   | Nil loc -> loc
   | Cons(loc, x, l) -> loc
 
-let rec foldr f g = function
+let rec llength_rec acc = function
+  | Nil _ -> acc
+  | Cons(_, _, ll) -> llength_rec (acc + 1) ll
+
+let llength ll = llength_rec 0 ll
+
+let rec lfoldr f g = function
   | Nil loc -> g loc
-  | Cons(loc, x, l) -> f loc x (foldr f g l)
+  | Cons(loc, x, l) -> f loc x (lfoldr f g l)
 
 let rec list_of_llist = function
   | Nil _ -> []
@@ -39,37 +44,24 @@ let rec ldrop n l =
     | Cons(_, _, l) -> ldrop (n - 1) l
     | l -> l
 
-(* [estring_expr l] @return the expression representing the list of
-   chars [l] *)
-let estring_expr l = foldr (fun _loc ch acc -> <:expr< $chr:Char.escaped ch$ :: $acc$ >>) (fun _loc -> <:expr< [] >>) l
+let llist_expr f ll = lfoldr (fun _loc x acc -> <:expr< $f _loc x$ :: $acc$ >>) (fun _loc -> <:expr< [] >>) ll
+let llist_patt f ll = lfoldr (fun _loc x acc -> <:patt< $f _loc x$ :: $acc$ >>) (fun _loc -> <:patt< [] >>) ll
 
-(* [estring_patt l] @return the pattern representing the list of
-   chars [l] *)
-let estring_patt l = foldr (fun _loc ch acc -> <:patt< $chr:Char.escaped ch$ :: $acc$ >>) (fun _loc -> <:patt< [] >>) l
+let estring_expr ll = llist_expr (fun _loc ch -> <:expr< $chr:Char.escaped ch$ >>) ll
+let estring_patt ll = llist_patt (fun _loc ch -> <:patt< $chr:Char.escaped ch$ >>) ll
 
-(* [unicode_expr l] @return the expression representing the list
-   of unicode characters [l] *)
-let unicode_expr l =
-  let e = foldr begin fun _loc ch acc ->
-    <:expr< $int:sprintf "0x%x" (EUChar.to_int ch)$ :: $acc$ >>
-  end (fun _loc -> <:expr< [] >>) l in
+let unicode_expr ll =
+  let e = llist_expr (fun _loc uch -> <:expr< $int:sprintf "0x%x" (EUChar.to_int uch)$ >>) ll in
   (* Here we know that the characters are correct so we can use
      Obj.magic safely *)
-  let _loc = loc_of_llist l in
+  let _loc = loc_of_llist ll in
   <:expr< (Obj.magic $e$ : EUChar.t list) >>
 
-(* [uchar_expr _loc uch] @return the expression representing [uch] *)
 let uchar_expr _loc uch = <:expr< (Obj.magic $int:sprintf "0x%x" (EUChar.to_int uch)$ : EUChar.t) >>
 
 IFDEF HAVE_PRIVATE THEN
 
-(* [unicode_patt l] @return the pattern representing the list of
-   unicode characters [l] *)
-let unicode_patt l = foldr begin fun _loc ch acc ->
-  <:patt< $int:sprintf "0x%x" (EUChar.to_int ch)$ :: $acc$ >>
-end (fun _loc -> <:patt< [] >>) l
-
-(* [uchar_expr _loc uch] @return the pattern representing [uch] *)
+let unicode_patt ll = llist_patt (fun _loc uch -> <:patt< $int:sprintf "0x%x" (EUChar.to_int uch)$ >>) ll
 let uchar_expr _loc uch = <:expr< $int:sprintf "0x%x" (EUChar.to_int uch)$ >>
 
 ELSE
@@ -97,8 +89,6 @@ let rec parse_utf8_rec ll = function
 
 let parse_utf8 ll = parse_utf8_rec ll (list_of_llist ll)
 
-(* [parse_uchar ll] parse a string containing exactly one UTF8-encoded
-   unicode character *)
 let parse_utf8_char ll =
   let l = list_of_llist ll in
   match EUChar.utf8_try_next l with
