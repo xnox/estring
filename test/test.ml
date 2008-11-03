@@ -27,9 +27,9 @@ let _ =
   print_estring (get_upper "aMgsdfAJ sdf" @ "\n");
   print_estring (EList.take 5 "Hello, how are you?" @ "\n");
   print_string n"native caml string\n";
-  print_estring (sprintf p"sprintf: %s, %d" "aaaa" 123 @ "\n");
-  printf p"a: %s, b: %ns\n" "plop" n"plip";
-  printf p"escaped char %C, escaped string %S\n" '\n' "aéaà";
+  print_estring (sprintf p"sprintf: %es, %d" "aaaa" 123 @ "\n");
+  printf p"a: %es, b: %s\n" "plop" n"plip";
+  printf p"escaped char %C, escaped string %eS\n" '\n' "aéaà";
   printf p"%d %X %x %lo %Lx\n%!" 1 43 32422 64l 0x1234abfL;
   printf p"estring: {estring}\n" "plop";
   printf p"int list: {list int}\n" [1; 2; 3];

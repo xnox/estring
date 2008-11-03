@@ -34,50 +34,43 @@ let estring_of_float = of_float
 let nativeint_of_estring = to_nativeint
 let estring_of_nativeint = of_nativeint
 
-let print_estring = List.iter print_char
-let prerr_estring = List.iter print_char
-let output_estring oc = List.iter (output_char oc)
+let print_estring l = List.iter print_char l
+let prerr_estring l = List.iter print_char l
+let output_estring oc l = List.iter (output_char oc) l
+
+let print_unicode l = List.iter (fun ch -> print_estring (EUChar.to_estring ch)) l
+let prerr_unicode l = List.iter (fun ch -> prerr_estring (EUChar.to_estring ch)) l
+let output_unicode oc l = List.iter (fun ch -> output_estring oc (EUChar.to_estring ch)) l
 
 let uchar_of_char = EUChar.of_char
 let char_of_uchar = EUChar.to_char
 let uchar_of_int32 = EUChar.of_int32
 let int32_of_uchar = EUChar.to_int32
 
-let rec parse_utf8 = function
-  | [] -> []
-  | l ->
-      let ch, rest = EUChar.next l in
-      ch :: parse_utf8 rest
-
-let unicode_of_estring l =
-  try
-    parse_utf8 l
-  with
-      _ -> failwith "unicode_of_estring"
-
-let rec estring_of_unicode = function
-  | [] -> []
-  | ch :: l -> EUChar.estring_prepend ch (estring_of_unicode l)
+let unicode_of_estring = EUnicode.of_estring
+let estring_of_unicode = EUnicode.to_estring
 
 let unicode = unicode_of_estring
 
 let print__c = { print = fun cont out acc ch -> cont (out.add ch acc) }
-let print__C = { print = fun cont out acc ch -> cont (out.add '\'' (fold out.add (out.add '\'' acc) (escaped_of_char ch))) }
-let print__s = { print = fun cont out acc str -> cont (fold out.add acc str) }
-let print__S = { print = fun cont out acc str -> cont (out.add '"' (fold out.add (out.add '"' acc) (escaped str))) }
-let print__ns = { print = fun cont out acc str ->
-                    let acc = ref acc in
-                    for i = 0 to String.length str - 1 do
-                      acc := out.add (String.unsafe_get str i) !acc
-                    done;
-                    cont !acc }
-let print__nS = { print = fun cont out acc str ->
-                    let acc = ref (out.add '"' acc) in
-                    for i = 0 to String.length str - 1 do
-                      acc := fold out.add !acc (escaped_of_char (String.unsafe_get str i))
-                    done;
-                    cont (out.add '"' !acc) }
-let print__any = { print = fun cont out acc _ -> print__ns.print cont out acc "<abstract>" }
+let print__C = { print = fun cont out acc ch -> cont (out.add '\'' (fold out.add (out.add '\'' acc) (EChar.escaped ch))) }
+let print__es = { print = fun cont out acc str -> cont (fold out.add acc str) }
+let print__eS = { print = fun cont out acc str -> cont (out.add '"' (fold out.add (out.add '"' acc) (escaped str))) }
+let print__s = { print = fun cont out acc str ->
+                   let acc = ref acc in
+                   for i = 0 to String.length str - 1 do
+                     acc := out.add (String.unsafe_get str i) !acc
+                   done;
+                   cont !acc }
+let print__S = { print = fun cont out acc str ->
+                   let acc = ref (out.add '"' acc) in
+                   for i = 0 to String.length str - 1 do
+                     acc := fold out.add !acc (EChar.escaped (String.unsafe_get str i))
+                   done;
+                   cont (out.add '"' !acc) }
+let print__ns = print__s
+let print__nS = print__S
+let print__any = { print = fun cont out acc _ -> print__s.print cont out acc "<abstract>" }
 
 let printuc out ch acc = fold out.add acc (EUChar.to_estring ch)
 let printuC out ch acc = fold out.add acc (EUChar.estring_escaped ch)
@@ -85,7 +78,7 @@ let printuC out ch acc = fold out.add acc (EUChar.estring_escaped ch)
 let print__uc = { print = fun cont out acc ch -> cont (printuc out ch acc) }
 let print__uC = { print = fun cont out acc ch -> cont (out.add '\'' ((printuC out ch (out.add '\'' acc)))) }
 let print__us = { print = fun cont out acc str -> cont (fold (printuc out) acc str) }
-let print__uS = { print = fun cont out acc str -> cont (out.add '"' (fold (printuc out) (out.add '"' acc) str)) }
+let print__uS = { print = fun cont out acc str -> cont (out.add '"' (fold (printuC out) (out.add '"' acc) str)) }
 
 module type Operations = sig
   type t
@@ -231,9 +224,9 @@ let print__nativeint = { print = fun cont out acc x -> cont (out.add 'L' (fold o
 let print__char = print__C
 let print__uchar = { print = fun cont out acc x -> print__uC.print cont out (out.add 'u' acc) x }
 let print__bool = print__B
-let print__string = { print = fun cont out acc x -> print__nS.print cont out (out.add 'n' acc) x }
+let print__string = { print = fun cont out acc x -> print__S.print cont out (out.add 'n' acc) x }
 let print__unicode = { print = fun cont out acc x -> print__uS.print cont out (out.add 'u' acc) x }
-let print__estring = print__S
+let print__estring = print__eS
 
 let rec plist x cont out l acc = match l with
   | [] -> cont (out.add ']' acc)
@@ -256,8 +249,8 @@ let print__array x = { print = fun cont out acc arr ->
                                (out.add '|' (out.add '[' acc)) (Array.unsafe_get arr 0) }
 
 let print__option x = { print = fun cont out acc -> function
-                          | None -> print__ns.print cont out acc "None"
-                          | Some e -> print__ns.print
+                          | None -> print__s.print cont out acc "None"
+                          | Some e -> print__s.print
                               (fun acc ->
                                  x.print (fun acc -> cont (out.add ')' acc)) out acc e)
                                 out acc "Some(" }

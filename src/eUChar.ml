@@ -15,6 +15,16 @@ type t = int
 
 let is_ascii x = (x land 0x7fffff80) = 0
 
+let length x =
+  if x land 0x7fffff80 = 0x00000000 then
+    1
+  else if x land 0x7fffe0c0 = 0x0000c080 then
+    2
+  else if x land 0x7ff0c0c0 = 0x00e08080 then
+    3
+  else
+    4
+
 let to_char x =
   if is_ascii x then
     Char.unsafe_chr x
@@ -70,7 +80,7 @@ let next = function
       let n = Char.code ch in
       if n land 0x80 = 0 then
         (n, l)
-      else if n land 0xe0 = 0xc then
+      else if n land 0xe0 = 0xc0 then
         trail n 1 l
       else if n land 0xf0 = 0xe0 then
         trail n 2 l
@@ -78,6 +88,34 @@ let next = function
         trail (n land 0x7f) 3 l
       else
         failwith "EUChar.next"
+
+let rec try_trail total acc count l = match count, l with
+  | 0, l ->
+      `Success(acc, l)
+  | _, ch :: l ->
+      let n = Char.code ch in
+      if n land 0xc0 = 0x80 then
+        try_trail total ((acc lsl 8) lor n) (count - 1) l
+      else
+        `Failure (Printf.sprintf "invalid trailing code(%d/%d): 0x%02x" (total - count + 1) total n)
+  | _, [] ->
+      `Failure (Printf.sprintf "missing trailing code(%d/%d)" (total - count + 1) total)
+
+let try_next = function
+  | [] ->
+      `Failure "empty string"
+  | ch :: l ->
+      let n = Char.code ch in
+      if n land 0x80 = 0 then
+        `Success(n, l)
+      else if n land 0xe0 = 0xc0 then
+        try_trail 1 n 1 l
+      else if n land 0xf0 = 0xe0 then
+        try_trail 2 n 2 l
+      else if n land 0xf8 = 0xf0 then
+        try_trail 3 (n land 0x7f) 3 l
+      else
+        `Failure (Printf.sprintf "invalid code: 0x%02x" n)
 
 let mkch = Char.unsafe_chr
 

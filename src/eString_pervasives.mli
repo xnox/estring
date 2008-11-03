@@ -39,17 +39,6 @@ val estring_of_int64 : int64 -> estring
 val nativeint_of_estring : estring -> nativeint
 val estring_of_nativeint : nativeint -> estring
 
-(** {6 estring output functions} *)
-
-val print_estring : estring -> unit
-  (** [print_estring str] print [str] on stdout *)
-
-val prerr_estring : estring -> unit
-  (** [print_estring str] print [str] on stderr *)
-
-val output_estring : out_channel -> estring -> unit
-  (** [output_estring oc str] print [str] on [oc] *)
-
 (** {6 Unicode} *)
 
 type uchar = EUChar.t
@@ -60,13 +49,10 @@ type unicode = uchar list
         with the syntax extension *)
 
 val unicode_of_estring : estring -> unicode
-  (** Convert an estring to an unicode one.
-
-      @raise [Failure "unicode_of_estring"] if the given string does
-      not contains a valid utf8 string *)
+  (** Same as {!EUnicode.of_estring} *)
 
 val estring_of_unicode : unicode -> estring
-  (** Convert an unicode string to an estring *)
+  (** Same as {!EUnicode.to_estring} *)
 
 val unicode : estring -> unicode
   (** Same as [unicode_of_estring] *)
@@ -83,6 +69,26 @@ val uchar_of_int32 : int32 -> uchar
 val int32_of_uchar : uchar -> int32
   (** Same as {!EUChar.to_int32} *)
 
+(** {6 Output functions} *)
+
+val print_estring : estring -> unit
+  (** [print_estring str] print [str] on stdout *)
+
+val prerr_estring : estring -> unit
+  (** [print_estring str] print [str] on stderr *)
+
+val output_estring : out_channel -> estring -> unit
+  (** [output_estring oc str] print [str] on [oc] *)
+
+val print_unicode : unicode -> unit
+  (** [print_unicode str] print [str] on stdout *)
+
+val prerr_unicode : unicode -> unit
+  (** [print_unicode str] print [str] on stderr *)
+
+val output_unicode : out_channel -> unicode -> unit
+  (** [output_unicode oc str] print [str] on [oc] *)
+
 (** {6 Predefined printers} *)
 
 type ('a, 'b) printer = ('a, 'b) EPrintf.printer
@@ -92,8 +98,8 @@ type ('a, 'b) printer = ('a, 'b) EPrintf.printer
 val print__B : (bool -> 'a, 'a) printer
 val print__c : (char -> 'a, 'a) printer
 val print__C : (char -> 'a, 'a) printer
-val print__s : (estring -> 'a, 'a) printer
-val print__S : (estring -> 'a, 'a) printer
+val print__s : (string -> 'a, 'a) printer
+val print__S : (string -> 'a, 'a) printer
 val print__d : (int -> 'a, 'a) printer
 val print__i : (int -> 'a, 'a) printer
 val print__n : (int -> 'a, 'a) printer
@@ -127,7 +133,13 @@ val print__ns : (string -> 'a, 'a) printer
   (** Print a native string *)
 
 val print__nS : (string -> 'a, 'a) printer
-  (** Print a escaped native string *)
+  (** Print an escaped native string *)
+
+val print__es : (estring -> 'a, 'a) printer
+  (** Print an estring *)
+
+val print__eS : (estring -> 'a, 'a) printer
+  (** Print an escaped estring *)
 
 val print__us : (unicode -> 'a, 'a) printer
   (** Print an unicode string *)

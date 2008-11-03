@@ -43,7 +43,9 @@ let print__flush = { print = fun cont out acc -> cont (out.flush acc) }
 let unit _ = ()
 
 let printf fmt = fmt.print unit channel_writer stdout
+let println fmt = fmt.print (fun _ -> print_newline ()) channel_writer stdout
 let eprintf fmt = fmt.print unit channel_writer stderr
+let eprintln fmt = fmt.print (fun _ -> prerr_newline ()) channel_writer stdout
 let fprintf oc fmt = fmt.print unit channel_writer oc
 let sprintf fmt = fmt.print List.rev estring_writer []
 let nprintf fmt =

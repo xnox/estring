@@ -14,12 +14,16 @@ type t = private int
 ELSE
 type t
 END
-  (** A unicode character, it can be written [u'X'] with [pa_estring]. *)
+   (** A unicode character, it can be written [u'X'] with [pa_estring]. *)
 
 (** {6 Char manipulation} *)
 
 val is_ascii : t -> bool
   (** Tell weather a unicode character is an ascii character or not *)
+
+val length : t -> int
+  (** [length ch] @return the number of bytes taken by [ch]. It is one
+      of 1, 2, 3, 4 *)
 
 val of_char : char -> t
   (** [of_char ch] convert the ascii character [ch] to a unicode
@@ -63,6 +67,10 @@ val next : EString.t -> t * EString.t
 
       @raise [Invalid_argument "EUChar.next"] if [str] is empty. *)
 
+val try_next : EString.t -> [ `Success of (t * EString.t) | `Failure of string ]
+  (** [try_next str] same as {!next} but instead of raising an
+      exception, return a failure with an error message *)
+
 val estring_prepend : t -> EString.t -> EString.t
   (** [estring_prepend ch str] add [ch] to [str] *)
 
@@ -72,14 +80,15 @@ val to_estring : t -> EString.t
 (** {6 Escaping} *)
 
 val estring_prepend_escaped : t -> EString.t -> EString.t
-  (** [estring_prepend_escaped ch acc] escape [ch] and add if to
-      [acc] *)
+  (** [estring_prepend_escaped ch acc] prepend an escaped versiion of
+      [ch] to [acc] *)
 
 val estring_escaped : t -> EString.t
   (** [estring_escaped ch] same as [estring_prepend_escaped ch []] *)
 
 val prepend_escaped : t -> t list -> t list
-  (** [prepend_escaped ch acc] escape [ch] and add it [acc] *)
+  (** [prepend_escaped ch acc] prepend an escaped version of [ch] to
+      [acc] *)
 
 val escaped : t -> t list
   (** [escaped ch] same as [prepend_escaped ch []] *)

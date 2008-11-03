@@ -25,13 +25,6 @@ val prepend_escaped : t -> t -> t
 val escaped : t -> t
   (** [escaped str] same as [prepend_escaped str []] *)
 
-val prepend_escaped_of_char : char -> t -> t
-  (** [prepend_escaped_of_char ch acc] prepend an escaped version of
-      [ch] to acc *)
-
-val escaped_of_char : char -> t
-  (** [escaped_of_char ch] same as [prepend_escaped_of_char ch []] *)
-
 (** {6 Parsing/printing} *)
 
 val of_bool : bool -> t

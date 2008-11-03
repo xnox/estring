@@ -59,8 +59,16 @@ val print__flush : ('a, 'a) printer
 val printf : ('a, unit) printer -> 'a
   (** [printf fmt] print on stdout *)
 
+val println : ('a, unit) printer -> 'a
+  (** [println fmt] print on stdout then print a newline and flush
+      stdout *)
+
 val eprintf : ('a, unit) printer -> 'a
   (** [eprintf fmt] print on stderr *)
+
+val eprintln : ('a, unit) printer -> 'a
+  (** [eprintln fmt] print on stderr then print a newline and flush
+      stderr *)
 
 val fprintf : out_channel -> ('a, unit) printer -> 'a
   (** [fprintf oc fmt] print on the output channel oc *)

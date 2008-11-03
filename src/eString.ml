@@ -156,28 +156,8 @@ let of_nativeint = Nativeint_functions.print_int
 let to_float x = float_of_string (to_string x)
 let of_float x = of_string (string_of_float x)
 
-external is_printable : char -> bool = "caml_is_printable"
-
-let prepend_escaped_of_char ch acc = match ch with
-  | '\'' -> '\\' :: '\'' :: acc
-  | '\\' -> '\\' :: '\\' :: acc
-  | '\n' -> '\\' :: 'n' :: acc
-  | '\t' -> '\\' :: 't' :: acc
-  | c ->
-      if is_printable c then
-        c :: acc
-      else
-        let n = Char.code c in
-        '\\'
-        :: Char.unsafe_chr (48 + n / 100)
-        :: Char.unsafe_chr (48 + (n / 10) mod 10)
-        :: Char.unsafe_chr (48 + n mod 10)
-        :: acc
-
-let escaped_of_char ch = prepend_escaped_of_char ch []
-
 let rec prepend_escaped str acc = match str with
   | [] -> acc
-  | c :: l -> prepend_escaped_of_char c (prepend_escaped l acc)
+  | c :: l -> EChar.prepend_escaped c (prepend_escaped l acc)
 
 let escaped str = prepend_escaped str []
