@@ -1,0 +1,4 @@
+All files in this directory will fail to compile.
+
+There are just used to check that the syntax extension correctly
+compute locations in strings, for reporting errors.

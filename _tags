@@ -8,3 +8,5 @@
 <src/*.ml{,i}>: pkg_camlp4.macro
 <test/**/*.ml{,i}>: pa_estring, pkg_camlp4.macro
 <test/**/*>: use_estring
+<manual.ml>: pa_estring
+<manual.*>: use_estring

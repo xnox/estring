@@ -10,7 +10,6 @@
 (** Pervasives for estring *)
 
 type estring = char list
-    (** New default string representation: list of characters *)
 
 (** {6 estring conversion functions} *)
 

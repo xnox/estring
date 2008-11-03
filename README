@@ -1,0 +1,40 @@
+estring is an extension for string definition/manipulation in OCaml.
+
+url: https://forge.ocamlcore.org/projects/estring/
+
+* Requirements:
+
+  estring depends only on the standard library of ocaml.
+
+* Installation:
+
+  To install estring just type:
+
+  $ make PREFIX=<prefix> install
+
+  You call also do:
+
+  $ make all
+  $ make PREFIX=<prefix> just-install
+
+  If you want to install files using a different user.
+
+* Using the library
+
+  estring install the following packages:
+
+  - estring.syntax:
+      The estring syntax extension.
+
+  - estring.lib:
+      The estring runtime library.
+
+  - estring:
+      estring.lib + estring.syntax.
+
+* Development:
+
+  The last development version of estring can always be found in the
+  darcs repository hosted at darcs.ocamlcore.org:
+
+  $ darcs get http://darcs.ocamlcore.org/repos/estring/estring
