@@ -14,7 +14,7 @@ type t = private int
 ELSE
 type t
 END
-   (** A unicode character, it can be written [u'X'] with [pa_estring]. *)
+   (** A unicode character, it can be written [U"X"] with [pa_estring]. *)
 
 (** {6 Char manipulation} *)
 

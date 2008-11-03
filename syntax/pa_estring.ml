@@ -58,6 +58,9 @@ let unicode_expr l =
   let _loc = loc_of_llist l in
   <:expr< (Obj.magic $e$ : EUChar.t list) >>
 
+(* [uchar_expr _loc uch] @return the expression representing [uch] *)
+let uchar_expr _loc uch = <:expr< (Obj.magic $int:sprintf "0x%x" (EUChar.to_int uch)$ : EUChar.t) >>
+
 IFDEF HAVE_PRIVATE THEN
 
 (* [unicode_patt l] @return the pattern representing the list of
@@ -66,11 +69,16 @@ let unicode_patt l = foldr begin fun _loc ch acc ->
   <:patt< $int:sprintf "0x%x" (EUChar.to_int ch)$ :: $acc$ >>
 end (fun _loc -> <:patt< [] >>) l
 
+(* [uchar_expr _loc uch] @return the pattern representing [uch] *)
+let uchar_expr _loc uch = <:expr< $int:sprintf "0x%x" (EUChar.to_int uch)$ >>
+
 ELSE
 
 (* If we do not have private types, then [UChar.t] is an abstract type
    and matching is not possible :( *)
-let unicode_patt l = Loc.raise (loc_of_llist l) (Stream.Error "you need ocaml >= 3.11 to use unicode in patterns")
+let fail loc = Loc.raise loc (Stream.Error "you need ocaml >= 3.11 to use unicode in patterns")
+let unicode_patt l = fail (loc_of_llist l)
+let uchar_patt loc uch = fail loc
 
 END
 
@@ -87,6 +95,20 @@ let rec parse_unicode_rec ll = function
                (sprintf "failed to decode unicode string: %s" msg))
 
 let parse_unicode ll = parse_unicode_rec ll (list_of_llist ll)
+
+(* [parse_uchar ll] parse a string containing exactly one unicode
+   character *)
+let parse_uchar ll =
+  let l = list_of_llist ll in
+  match EUChar.try_next l with
+    | `Success(uch, []) -> uch
+    | `Success(uch, _) ->
+        Loc.raise (loc_of_llist (ldrop (EUChar.length uch) ll))
+          (Stream.Error "data remaining after unicode character")
+    | `Failure msg ->
+        Loc.raise (loc_of_llist ll)
+          (Stream.Error
+             (sprintf "failed to decode unicode character: %s" msg))
 
 (* +--------------------+
    | Strings unescaping |
@@ -209,18 +231,19 @@ let make_annotated_stream stm =
                   Some(tok, loc)
             end
 
-        | LIDENT id when String.length id = 1 && prev <> KEYWORD "." ->
+        | LIDENT("e" | "n" | "u" | "p" | "s" as id) when prev <> KEYWORD "." ->
             begin match Stream.peek stm with
               | Some(STRING(s, orig), loc) ->
-                  begin match id with
-                    | "e" | "n" | "u" | "p" | "s" ->
-                        Stream.junk stm;
-                        Some(STRING(id ^ s, id ^ orig), loc)
-                    | _ ->
-                        Loc.raise loc
-                          (Stream.Error
-                             (sprintf "invalid estring specifier %S, must be one of e, n, u, p or s" id))
-                  end
+                  Stream.junk stm;
+                  Some(STRING(id ^ s, id ^ orig), loc)
+              | _ -> Some(tok, loc)
+            end
+
+        | UIDENT("U" as id) when prev <> KEYWORD "." ->
+            begin match Stream.peek stm with
+              | Some(STRING(s, orig), loc) ->
+                  Stream.junk stm;
+                  Some(STRING(id ^ s, id ^ orig), loc)
               | _ -> Some(tok, loc)
             end
 
@@ -382,6 +405,7 @@ let handle_specifier_error = function
 let expr_of_annotated_string = function
   | Cons(_loc, 'e', l) -> estring_expr l
   | Cons(_loc, 'u', l) -> unicode_expr (parse_unicode l)
+  | Cons(_loc, 'U', l) -> uchar_expr _loc (parse_uchar l)
   | Cons(_loc, 'n', l) -> <:expr< $str:String.escaped (string_of_estring (list_of_llist l))$ >>
   | Cons(_loc, 'p', l) -> safe_make_format print_mapper l
   | Cons(_loc, 's', l) -> safe_make_format scan_mapper l
@@ -392,19 +416,27 @@ let expr_of_annotated_string = function
 let patt_of_annotated_string = function
   | Cons(_loc, 'e', l) -> estring_patt l
   | Cons(_loc, 'u', l) -> unicode_patt (parse_unicode l)
+  | Cons(_loc, 'U', l) -> uchar_patt _loc (parse_uchar l)
   | Cons(_loc, 'n', l) -> <:patt< $str:String.escaped (string_of_estring (list_of_llist l))$ >>
   | Cons(_loc, ('p' | 's'), _) -> Loc.raise _loc (Stream.Error "format string are not allowed in pattern")
   | l -> handle_specifier_error l
+
+(* [is_uchar id] tell weather a identifier must be interpreted as an
+   unicode character *)
+let is_uchar id = String.length id > 3 &&
+  id.[0] = 'u' && id.[1] = '\'' && id.[String.length id - 1] = '\''
+
+let parse_string loc s = unescape loc (estring_of_string s)
 
 let map = object
   inherit Ast.map as super
 
   method expr e = match super#expr e with
-    | <:expr@loc< $str:s$ >> -> expr_of_annotated_string (unescape loc (estring_of_string s))
+    | <:expr@loc< $str:s$ >> -> expr_of_annotated_string (parse_string loc s)
     | e -> e
 
   method patt p = match super#patt p with
-    | <:patt@loc< $str:s$ >> -> patt_of_annotated_string (unescape loc (estring_of_string s))
+    | <:patt@loc< $str:s$ >> -> patt_of_annotated_string (parse_string loc s)
     | p -> p
 end
 
