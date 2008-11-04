@@ -260,7 +260,15 @@ let make_tagged_stream stm =
               | _ -> Some(tok, loc)
             end
 
-        | LIDENT("e" | "u" | "U" | "p" | "s" as id) when prev <> KEYWORD "." ->
+        | LIDENT("e" | "u" | "p" | "s" as id) when prev <> KEYWORD "." ->
+            begin match Stream.peek stm with
+              | Some(STRING(s, orig), loc) ->
+                  Stream.junk stm;
+                  Some(STRING(tag id.[0] s, tag id.[0] orig), loc)
+              | _ -> Some(tok, loc)
+            end
+
+        | UIDENT("U" as id) when prev <> KEYWORD "." ->
             begin match Stream.peek stm with
               | Some(STRING(s, orig), loc) ->
                   Stream.junk stm;
