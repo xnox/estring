@@ -63,7 +63,9 @@ install: all just-install
 
 just-install:
 	$(OF) install estring META manual.ml \
+	 syntax/pa_estring.mli \
 	 _build/syntax/pa_estring.cmo \
+	 _build/syntax/pa_estring.cmi \
 	 $(LIB:%=_build/%.cma) \
 	 $(LIB:%=_build/%.cmxa) \
 	 $(LIB:%=_build/%.a) \

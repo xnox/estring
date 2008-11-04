@@ -89,11 +89,11 @@ let utf8_next = function
       if n land 0x80 = 0 then
         (n, l)
       else if n land 0xe0 = 0xc0 then
-        utf8_trail 0x80 n 1 l
+        utf8_trail 0x80 (n land 0x1f) 1 l
       else if n land 0xf0 = 0xe0 then
-        utf8_trail 0x800 n 2 l
+        utf8_trail 0x800 (n land 0x0f) 2 l
       else if n land 0xf8 = 0xf0 then
-        utf8_trail 0x10000 (n land 0x7f) 3 l
+        utf8_trail 0x10000 (n land 0x07) 3 l
       else
         failwith "EUChar.utf8_next"
 
@@ -120,11 +120,11 @@ let utf8_try_next = function
       if n land 0x80 = 0 then
         `Success(n, l)
       else if n land 0xe0 = 0xc0 then
-        utf8_try_trail 0x80 1 n 1 l
+        utf8_try_trail 0x80 1 (n land 0x1f) 1 l
       else if n land 0xf0 = 0xe0 then
-        utf8_try_trail 0x800 1 n 2 l
+        utf8_try_trail 0x800 1 (n land 0x0f) 2 l
       else if n land 0xf8 = 0xf0 then
-        utf8_try_trail 0x10000 1 (n land 0x7f) 3 l
+        utf8_try_trail 0x10000 1 (n land 0x07) 3 l
       else
         `Failure(Printf.sprintf "invalid code: 0x%02x" n)
 
