@@ -161,3 +161,14 @@ let rec prepend_escaped str acc = match str with
   | c :: l -> EChar.prepend_escaped c (prepend_escaped l acc)
 
 let escaped str = prepend_escaped str []
+
+let capitalize = function
+  | [] -> []
+  | c :: l -> Char.uppercase c :: l
+
+let uncapitalize = function
+  | [] -> []
+  | c :: l -> Char.lowercase c :: l
+
+let uppercase l = List.map Char.uppercase l
+let lowercase l = List.map Char.lowercase l

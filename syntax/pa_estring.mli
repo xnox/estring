@@ -44,11 +44,18 @@ val lfoldr : (Loc.t -> 'a -> 'acc -> 'acc) -> (Loc.t -> 'acc) -> 'a llist -> 'ac
 val list_of_llist : 'a llist -> 'a list
   (** @return the list of elements contained in a llist *)
 
+val llist_of_list : Loc.t -> 'a list -> 'a llist
+  (** [llist_of_list loc l] Create a llist with all elements from [l].
+      The nth element will be at loc + n. *)
+
 val ldrop : int -> 'a llist -> 'a llist
   (** [ldrop count ll] @return [ll] without its first [count] element.
 
       - @return [ll] if [n <= 0]
       - @return [[]] if [n > llength ll] *)
+
+val lappend : 'a llist -> 'a llist -> 'a llist
+  (** [lappend ll1 ll2] append two llist *)
 
 val llist_expr : (Loc.t -> 'a -> expr) -> 'a llist -> expr
   (** [llist_expr f ll] @return the expression representing a list

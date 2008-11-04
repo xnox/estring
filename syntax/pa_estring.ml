@@ -37,12 +37,20 @@ let rec list_of_llist = function
   | Nil _ -> []
   | Cons(_, x, l) -> x :: list_of_llist l
 
+let rec llist_of_list loc = function
+  | [] -> Nil loc
+  | x :: l -> Cons(loc, x, llist_of_list (Loc.move `start 1 loc) l)
+
 let rec ldrop n l =
   if n <= 0 then
     l
   else match l with
     | Cons(_, _, l) -> ldrop (n - 1) l
     | l -> l
+
+let rec lappend ll1 ll2 = match ll1 with
+  | Nil _ -> ll1
+  | Cons(loc, x, ll) -> Cons(loc, x, lappend ll ll2)
 
 let llist_expr f ll = lfoldr (fun _loc x acc -> <:expr< $f _loc x$ :: $acc$ >>) (fun _loc -> <:expr< [] >>) ll
 let llist_patt f ll = lfoldr (fun _loc x acc -> <:patt< $f _loc x$ :: $acc$ >>) (fun _loc -> <:patt< [] >>) ll

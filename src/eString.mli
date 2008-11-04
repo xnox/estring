@@ -22,6 +22,20 @@ val prepend_escaped : t -> t -> t
   (** [append_escaped str acc] prepend an escaped version of [str] to
       [acc] *)
 
+val capitalize : t -> t
+  (** [capitalize str] @return [str] with it first character set to
+      uppercase *)
+
+val uncapitalize : t -> t
+  (** [uncapitalize str] @return [str] with it first character set to
+      lowercase *)
+
+val uppercase : t -> t
+  (** [uppercase str] same as [List.map Char.lowercase str] *)
+
+val lowercase : t -> t
+  (** [lowercase str] same as [List.map Char.lowercase str] *)
+
 val escaped : t -> t
   (** [escaped str] same as [prepend_escaped str []] *)
 
