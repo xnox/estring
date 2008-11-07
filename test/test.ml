@@ -18,9 +18,9 @@ let x = 'a' :: 'b' :: "cdef"
 
 type plop = A | B of int
 
-let print__plop = { print = fun cont out acc -> function
-                      | A -> p"A".print cont out acc
-                      | B x -> p"B %d".print cont out acc x }
+let print__plop cont pp = function
+  | A -> p"A" cont pp
+  | B x -> p"B %d" cont pp x
 
 let _ =
   print_estring "Hello world!\n";

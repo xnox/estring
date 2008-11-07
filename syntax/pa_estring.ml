@@ -347,30 +347,53 @@ let rec get_long_spec deep = function
       let spec, rest = get_long_spec deep rest in
       (ch :: spec, rest)
 
-(* [get_const_and_spec mapper l] read the constant part of [l],
-   i.e. the part without conversion specification, then read one
-   conversion specification if available and return the constant part,
-   the specification and the rest.
+(* [get_const l] extract the constart part of [l], i.e. the longest
+   prefix without any specification conversion *)
+let rec get_const = function
+  | Nil _ as l ->
+      ([], l)
+
+  | Cons(_, '%', l') as l->
+      begin match l' with
+        | Cons(_, ('%' | '{' | '}' as ch), l) ->
+            let const, rest = get_const l in
+            (ch :: const, rest)
+
+        | _ ->
+            ([], l)
+      end
+
+  | Cons(_, '{', _) as l ->
+      ([], l)
+
+  | Cons(_, x, l) ->
+      let const, rest = get_const l in
+      (x :: const, rest)
+
+(* [nconst_expr _loc l] expression for a constant string printer *)
+let nconst_expr _loc l = <:expr< EPrintf.nconst $str:String.escaped (string_of_estring l)$ >>
+
+(* [get_next_printer mapper l] extract the next printer of [l].
 
    [mapper] is used to map long specification expression. It is either
    [print_mapper] or [scan_mapper] *)
-let rec get_const_and_spec mapper = function
+let rec get_next_printer mapper = function
   | Nil _ ->
-      ([], None)
+      None
 
   | Cons(_loc, '%', l) -> begin match l with
       | Cons(_, ('a'..'z' | 'A'..'Z' as ch1), Cons(_, ('a'..'z' | 'A'..'Z' as ch2), l)) ->
-          ([], Some(<:expr< $lid:sprintf "print__%c%c" ch1 ch2$ >>, l))
+          Some(<:expr< $lid:sprintf "print__%c%c" ch1 ch2$ >>, l)
 
       | Cons(_, ('a'..'z' | 'A'..'Z' as ch), l) ->
-          ([], Some(<:expr< $lid:sprintf "print__%c" ch$ >>, l))
+          Some(<:expr< $lid:sprintf "print__%c" ch$ >>, l)
 
       | Cons(_, '!', l) ->
-          ([], Some(<:expr< EPrintf.print__flush >>, l))
+          Some(<:expr< EPrintf.print__flush >>, l)
 
       | Cons(_, ('{' | '}' | '%' as ch), l) ->
-          let const, next = get_const_and_spec mapper l in
-          (ch :: const, next)
+          let const, next = get_const l in
+          Some(nconst_expr _loc (ch :: const), next)
 
       | Cons(loc, ch, l) ->
           raise (Invalid_conversion_char(loc, ch))
@@ -382,38 +405,27 @@ let rec get_const_and_spec mapper = function
   | Cons(_, '{', l) ->
       let spec, rest = get_long_spec 0 l in
       let e_spec = mapper#expr (Gram.parse Syntax.expr_eoi (loc_of_llist l) (Stream.of_list spec)) in
-      ([], Some(e_spec, rest))
+      Some(e_spec, rest)
 
-  | Cons(_, ch, l) ->
-      let const, next = get_const_and_spec mapper l in
-      (ch :: const, next)
-
-(* [nconst_expr _loc l] expression for a constant string printer *)
-let nconst_expr _loc l = <:expr< EPrintf.nconst $str:String.escaped (string_of_estring l)$ >>
+  | Cons(loc, ch, l) ->
+      let const, rest = get_const l in
+      Some(nconst_expr loc (ch :: const), rest)
 
 (* [make_format mapper l] create a format expression from a format
    string *)
 let rec make_format mapper l =
   let _loc = loc_of_llist l in
-  match get_const_and_spec mapper l with
-    | [], None ->
-        <:expr< EPrintf.nil >>
-    | [], Some(espec, Nil _) ->
-        espec
-    | [], Some(espec, rest) ->
-        <:expr< EPrintf.cons $espec$ $make_format mapper rest$ >>
-    | l, None ->
-        nconst_expr _loc l
-    | l, Some(espec, Nil _) ->
-        <:expr< EPrintf.cons $nconst_expr _loc l$ $espec$ >>
-    | l, Some(espec, rest) ->
-        <:expr< EPrintf.cons $nconst_expr _loc l$
-                 (EPrintf.cons $espec$ $make_format mapper rest$) >>
+  match get_next_printer mapper l with
+    | None ->
+        <:expr< __estring_cont >>
+    | Some(pr_expr, rest) ->
+        <:expr< $pr_expr$ ($make_format mapper rest$ __estring__pp) >>
 
 (* Handle format parsing error *)
 let safe_make_format mapper l =
   try
-    make_format mapper l
+    let _loc = loc_of_llist l in
+    <:expr< fun __estring_cont __estring_pp -> $make_format mapper l$ >>
   with
     | Premature_end loc ->
         Loc.raise loc (Stream.Error "premature end of format")

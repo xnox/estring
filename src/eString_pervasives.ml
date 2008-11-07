@@ -10,14 +10,12 @@
 open EPrintf
 open EString
 
+open Format
+
 type estring = char list
 type ('a, 'b) printer = ('a, 'b) EPrintf.printer
 type uchar = EUChar.t
 type unicode = uchar list
-
-let rec fold f acc = function
-  | [] -> acc
-  | x :: l -> fold f (f x acc) l
 
 let string_of_estring = to_string
 let estring_of_string = of_string
@@ -52,33 +50,66 @@ let estring_of_unicode = EUnicode.to_utf8
 
 let unicode = unicode_of_estring
 
-let print__c = { print = fun cont out acc ch -> cont (out.add ch acc) }
-let print__C = { print = fun cont out acc ch -> cont (out.add '\'' (fold out.add (out.add '\'' acc) (EChar.escaped ch))) }
-let print__es = { print = fun cont out acc str -> cont (fold out.add acc str) }
-let print__eS = { print = fun cont out acc str -> cont (out.add '"' (fold out.add (out.add '"' acc) (escaped str))) }
-let print__s = { print = fun cont out acc str ->
-                   let acc = ref acc in
-                   for i = 0 to String.length str - 1 do
-                     acc := out.add (String.unsafe_get str i) !acc
-                   done;
-                   cont !acc }
-let print__S = { print = fun cont out acc str ->
-                   let acc = ref (out.add '"' acc) in
-                   for i = 0 to String.length str - 1 do
-                     acc := fold out.add !acc (EChar.escaped (String.unsafe_get str i))
-                   done;
-                   cont (out.add '"' !acc) }
-let print__ns = print__s
-let print__nS = print__S
-let print__any = { print = fun cont out acc _ -> print__s.print cont out acc "<abstract>" }
+let pp_print_estring pp l =
+  (* pp_print_char create a string of length 1, so it seems
+     unefficient to use it here *)
+  pp_print_string pp (string_of_estring l)
 
-let printuc out ch acc = fold out.add acc (EUChar.to_utf8 ch)
-let printuC out ch acc = fold out.add acc (EUnicode.to_utf8 (EUChar.escaped ch))
+let pp_print_unicode pp l =
+  pp_print_estring pp (EUnicode.to_utf8 l)
 
-let print__uc = { print = fun cont out acc ch -> cont (printuc out ch acc) }
-let print__uC = { print = fun cont out acc ch -> cont (out.add '\'' ((printuC out ch (out.add '\'' acc)))) }
-let print__us = { print = fun cont out acc str -> cont (fold (printuc out) acc str) }
-let print__uS = { print = fun cont out acc str -> cont (out.add '"' (fold (printuC out) (out.add '"' acc) str)) }
+let print__c cont pp ch =
+  pp_print_char pp ch;
+  cont pp
+
+let print__C cont pp ch =
+  pp_print_string pp "'";
+  pp_print_estring pp (EChar.escaped ch);
+  pp_print_string pp "'";
+  cont pp
+
+let print__es cont pp l =
+  pp_print_estring pp l;
+  cont pp
+
+let print__eS cont pp l =
+  pp_print_string pp "\"";
+  pp_print_estring pp (EString.escaped l);
+  pp_print_string pp "\"";
+  cont pp
+
+let print__ns cont pp str =
+  pp_print_string pp str;
+  cont pp
+
+let print__nS cont pp str =
+  pp_print_string pp "'";
+  pp_print_string pp (String.escaped str);
+  pp_print_string pp "'";
+  cont pp
+
+let print__s = print__ns
+let print__S = print__nS
+
+let print__uc cont pp ch =
+  pp_print_string pp (string_of_estring (EUChar.to_utf8 ch));
+  cont pp
+
+let print__uC cont pp ch =
+  pp_print_string pp "'";
+  pp_print_estring pp (EUnicode.to_utf8 (EUChar.escaped ch));
+  pp_print_string pp "'";
+  cont pp
+
+let print__us cont pp str =
+  pp_print_string pp (string_of_estring (EUnicode.to_utf8 str));
+  cont pp
+
+let print__uS cont pp str =
+  pp_print_string pp "\"";
+  pp_print_estring pp (EUnicode.to_utf8 (EUnicode.escaped str));
+  pp_print_string pp "\"";
+  cont pp
 
 module type Operations = sig
   type t
@@ -144,10 +175,10 @@ struct
   let to_dec = make_to to_dec_rec
   let to_oct = make_to to_oct_rec
 
-  let pHEX = { print = fun cont out acc x -> cont (fold out.add acc (make_to to_HEX_rec x)) }
-  let phex = { print = fun cont out acc x -> cont (fold out.add acc (make_to to_hex_rec x)) }
-  let pdec = { print = fun cont out acc x -> cont (fold out.add acc (make_to to_dec_rec x)) }
-  let poct = { print = fun cont out acc x -> cont (fold out.add acc (make_to to_oct_rec x)) }
+  let pHEX cont pp x = pp_print_estring pp (make_to to_HEX_rec x); cont pp
+  let phex cont pp x = pp_print_estring pp (make_to to_hex_rec x); cont pp
+  let pdec cont pp x = pp_print_estring pp (make_to to_dec_rec x); cont pp
+  let poct cont pp x = pp_print_estring pp (make_to to_oct_rec x); cont pp
 end
 
 module Int_functions =
@@ -185,25 +216,25 @@ module Nativeint_functions =
                        let ten = 10n
                      end)
 
-let print__d = { print = fun cont out acc x -> cont (fold out.add acc (estring_of_int x)) }
+let print__d cont pp x = pp_print_estring pp (estring_of_int x); cont pp
 let print__i = print__d
 let print__X = Int_functions.pHEX
 let print__x = Int_functions.phex
 let print__u = Int_functions.pdec
 let print__o = Int_functions.poct
-let print__ld = { print = fun cont out acc x -> cont (fold out.add acc (estring_of_int32 x)) }
+let print__ld cont pp x = pp_print_estring pp (estring_of_int32 x); cont pp
 let print__li = print__ld
 let print__lX = Int32_functions.pHEX
 let print__lx = Int32_functions.phex
 let print__lu = Int32_functions.pdec
 let print__lo = Int32_functions.poct
-let print__Ld = { print = fun cont out acc x -> cont (fold out.add acc (estring_of_int64 x)) }
+let print__Ld cont pp x = pp_print_estring pp (estring_of_int64 x); cont pp
 let print__Li = print__Ld
 let print__LX = Int64_functions.pHEX
 let print__Lx = Int64_functions.phex
 let print__Lu = Int64_functions.pdec
 let print__Lo = Int64_functions.poct
-let print__nd = { print = fun cont out acc x -> cont (fold out.add acc (estring_of_nativeint x)) }
+let print__nd cont pp x = pp_print_estring pp (estring_of_nativeint x); cont pp
 let print__ni = print__nd
 let print__nX = Nativeint_functions.pHEX
 let print__nx = Nativeint_functions.phex
@@ -215,42 +246,96 @@ let print__N = print__d
 let print__l = print__d
 let print__L = print__d
 
-let print__B = { print = fun cont out acc x -> cont (fold out.add acc (estring_of_bool x)) }
+let print__B cont pp x = pp_print_estring pp (estring_of_bool x); cont pp
+
+let print__a cont pp f x = f pp x; cont pp
+
+let print__any cont pp x =
+  pp_print_string pp "<abstract>";
+  cont pp
 
 let print__int = print__d
-let print__int32 = { print = fun cont out acc x -> cont (out.add 'l' (fold out.add acc (estring_of_int32 x))) }
-let print__int64 = { print = fun cont out acc x -> cont (out.add 'L' (fold out.add acc (estring_of_int64 x))) }
-let print__nativeint = { print = fun cont out acc x -> cont (out.add 'L' (fold out.add acc (estring_of_nativeint x))) }
+
+let print__int32 cont pp x =
+  pp_print_string pp (Int32.to_string x);
+  pp_print_string pp "l";
+  cont pp
+
+let print__int64 cont pp x =
+  pp_print_string pp (Int64.to_string x);
+  pp_print_string pp "L";
+  cont pp
+
+let print__nativeint cont pp x =
+  pp_print_string pp (Nativeint.to_string x);
+  pp_print_string pp "n";
+  cont pp
+
 let print__char = print__C
-let print__uchar = { print = fun cont out acc x -> print__uC.print cont out (out.add 'u' acc) x }
+
+let print__uchar cont pp uch =
+  pp_print_string pp "U\"";
+  pp_print_unicode pp (EUChar.escaped uch);
+  pp_print_string pp "\"";
+  cont pp
+
 let print__bool = print__B
-let print__string = { print = fun cont out acc x -> print__S.print cont out (out.add 'n' acc) x }
-let print__unicode = { print = fun cont out acc x -> print__uS.print cont out (out.add 'u' acc) x }
-let print__estring = print__eS
 
-let rec plist x cont out l acc = match l with
-  | [] -> cont (out.add ']' acc)
-  | e :: l -> x.print (plist x cont out l) out (out.add ' ' (out.add ';' acc)) e
+let print__string cont pp str =
+  pp_print_string pp "n\"";
+  pp_print_string pp str;
+  pp_print_string pp "\"";
+  cont pp
 
-let print__list x = { print = fun cont out acc l -> match l with
-                        | [] -> cont (out.add ']' (out.add '[' acc))
-                        | e :: l -> x.print (plist x cont out l) out (out.add '[' acc) e }
+let print__unicode cont pp ustr =
+  pp_print_string pp "n\"";
+  pp_print_unicode pp ustr;
+  pp_print_string pp "\"";
+  cont pp
 
-let rec parray x cont out arr i acc =
-  if i = Array.length arr then
-    cont (out.add ']' (out.add '|' acc))
-  else
-    x.print (parray x cont out arr (i + 1)) out (out.add ' ' (out.add ';' acc)) (Array.unsafe_get arr i)
+let print__estring cont pp estr =
+  pp_print_string pp "\"";
+  pp_print_estring pp estr;
+  pp_print_string pp "\"";
+  cont pp
 
-let print__array x = { print = fun cont out acc arr ->
-                         match Array.length arr with
-                           | 0 -> cont (out.add ']' (out.add '|' (out.add '|' (out.add '[' acc))))
-                           | _ -> x.print (parray x cont out arr 1) out
-                               (out.add '|' (out.add '[' acc)) (Array.unsafe_get arr 0) }
+let rec plist cont elt_printer pp = function
+  | [] ->
+      pp_print_string pp "]";
+      cont pp
+  | x :: l ->
+      pp_print_string pp ";";
+      pp_print_space pp ();
+      elt_printer (fun pp -> plist cont elt_printer pp l) pp x
 
-let print__option x = { print = fun cont out acc -> function
-                          | None -> print__s.print cont out acc "None"
-                          | Some e -> print__s.print
-                              (fun acc ->
-                                 x.print (fun acc -> cont (out.add ')' acc)) out acc e)
-                                out acc "Some(" }
+let print__list elt_printer cont pp = function
+  | [] ->
+      pp_print_string pp "[]";
+      cont pp
+  | x :: l ->
+      pp_print_string pp "[";
+      elt_printer (fun pp -> plist cont elt_printer pp l) pp x
+
+let print__array elt_printer cont pp arr =
+  match Array.length arr with
+    | 0 ->
+        pp_print_string pp "[||]";
+        cont pp
+    | len ->
+        pp_print_string pp "[|";
+        elt_printer (fun _ -> ()) pp arr.(0);
+        for i = 1 to len - 1 do
+          pp_print_string pp ";";
+          pp_print_space pp ();
+          elt_printer (fun _ -> ()) pp arr.(i)
+        done;
+        pp_print_string pp "|]";
+        cont pp
+
+let print__option a_printer cont pp = function
+  | None ->
+      pp_print_string pp "None";
+      cont pp
+  | Some x ->
+      pp_print_string pp "Some(";
+      a_printer (fun pp -> pp_print_string pp ")"; cont pp) pp x

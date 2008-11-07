@@ -17,8 +17,8 @@ val string_of_estring : estring -> string
 val estring_of_string : string -> estring
   (** Convertion between native mutable strings and estrings *)
 
-(** The following functions behave like the corresponding functions of
-    [Pervasives] but deal with estring instead. *)
+(** The following functions behave as their counterpart in
+    [Pervasives] but deal with estrings instead of strings. *)
 
 val bool_of_estring : estring -> bool
 val estring_of_bool : bool -> estring
@@ -88,12 +88,20 @@ val prerr_unicode : unicode -> unit
 val output_unicode : out_channel -> unicode -> unit
   (** [output_unicode oc str] print [str] on [oc] *)
 
+(** {6 Pretty-printers} *)
+
+open Format
+
+val pp_print_estring : formatter -> estring -> unit
+val pp_print_unicode : formatter -> unicode -> unit
+
 (** {6 Predefined printers} *)
 
 type ('a, 'b) printer = ('a, 'b) EPrintf.printer
 
 (** The following printers are the equivalent of classical conversion
     characters: *)
+val print__a : ((formatter -> 'a -> unit) -> 'a -> 'b, 'b) printer
 val print__B : (bool -> 'a, 'a) printer
 val print__c : (char -> 'a, 'a) printer
 val print__C : (char -> 'a, 'a) printer
@@ -128,31 +136,18 @@ val print__nx : (nativeint -> 'a, 'a) printer
 val print__nx : (nativeint -> 'a, 'a) printer
 val print__no : (nativeint -> 'a, 'a) printer
 
+(** {8 String/char printers} *)
+
 val print__ns : (string -> 'a, 'a) printer
-  (** Print a native string *)
-
 val print__nS : (string -> 'a, 'a) printer
-  (** Print an escaped native string *)
-
 val print__es : (estring -> 'a, 'a) printer
-  (** Print an estring *)
-
 val print__eS : (estring -> 'a, 'a) printer
-  (** Print an escaped estring *)
-
 val print__us : (unicode -> 'a, 'a) printer
-  (** Print an unicode string *)
-
 val print__uS : (unicode -> 'a, 'a) printer
-  (** Print an escaped unicode string *)
-
 val print__uc : (uchar -> 'a, 'a) printer
-  (** Print an unicode char *)
-
 val print__uC : (uchar -> 'a, 'a) printer
-  (** Print an escaped unicode char *)
 
-(** Printer for basic types *)
+(** {8 Basic type printers} *)
 
 val print__any : ('a -> 'b, 'b) printer
 val print__int : (int -> 'a, 'a) printer
@@ -166,5 +161,5 @@ val print__string : (string -> 'a, 'a) printer
 val print__estring : (estring -> 'a, 'a) printer
 val print__unicode : (unicode -> 'a, 'a) printer
 val print__list : ('a -> 'b, 'b) printer -> ('a list -> 'b, 'b) printer
-val print__array : ('a -> 'b, 'b) printer -> ('a array -> 'b, 'b) printer
+val print__array : ('a -> unit, unit) printer -> ('a array -> 'b, 'b) printer
 val print__option : ('a -> 'b, 'b) printer -> ('a option -> 'b, 'b) printer

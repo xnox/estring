@@ -273,40 +273,11 @@ type 'a foo =
   | B of estring
   | C
 
-let print__foo (print__a : ('a -> 'b, 'b) printer) : ('a foo -> 'b, 'b) printer =
-  { print = fun cont out acc foo -> match foo with
-      | A x -> p"A({a})".print cont out acc x
-      | B x -> p"B({estring})".print cont out acc x
-      | C -> p"C".print cont out acc }
+let print__foo print__a cont pp = function
+  | A x -> p"A({a})" cont pp x
+  | B x -> p"B({estring})" cont pp x
+  | C -> p"C" cont pp
 
 (** and now: *)
 
 let _ = println p"truc = {list (foo int)}" [A 1; B e"plop"; C]
-
-(** One thing interesting is that it is also very easy to define new
-    writer. Assuming we have a monadic operation for writing a char,
-    then we can write something like that: *)
-
-module type Writer = sig
-  type 'a t
-
-  val bind : 'a t -> ('a -> 'b t) -> 'b t
-  val return : 'a -> 'a t
-
-  val output_char : char -> unit t
-  val flush : unit -> unit t
-end
-
-module Make_writer(Writer : Writer) : sig
-
-  val writer : unit Writer.t writer
-  val printf : ('a, unit Writer.t) printer -> 'a
-
-end = struct
-  open Writer
-
-  let writer = { add = (fun ch acc -> bind acc (fun _ -> output_char ch));
-                 flush = (fun acc -> bind acc flush) }
-
-  let printf fmt = fmt.print (fun x -> x) writer (return ())
-end

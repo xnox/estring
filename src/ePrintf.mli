@@ -9,34 +9,13 @@
 
 (** Extended printf facility *)
 
-type 'acc writer = {
-  add : char -> 'acc -> 'acc;
-  (** [add char acc] add one character to the output *)
-
-  flush : 'acc -> 'acc;
-  (** [flush acc] flush output *)
-}
-
-(** {6 Predefined writers} *)
-
-val channel_writer : out_channel writer
-  (** Write on the given output channel *)
-
-val estring_writer : EString.t writer
-  (** Note that this writer construct the string in reverse order *)
-
-val buffer_writer : Buffer.t writer
-  (** Write on the given buffer *)
-
-val null_writer : 'a writer
-  (** Drop all characters *)
+open Format
 
 (** {6 Printers} *)
 
-type ('a, 'b) printer = {
-  print : 'acc. ('acc -> 'b) -> 'acc writer -> 'acc -> 'a;
-  (** [print cont add acc ...] *)
-}
+type ('a, 'b) printer =  (formatter -> 'b) -> formatter -> 'a
+ (** A printer is a funtion which take a continuation, a formater,
+     then any arguments and print them on the formatter *)
 
 val econst : EString.t -> ('a, 'a) printer
   (** [econst str] printer which do not take any argument and output
@@ -52,7 +31,8 @@ val nil : ('a, 'a) printer
   (** [nil] printer which do nothing *)
 
 val print__flush : ('a, 'a) printer
-  (** [print__flush] printer which print nothing and flush output *)
+  (** [print__flush] printer which print nothing and flush the
+      formatter *)
 
 (** {6 Printing functions} *)
 
@@ -70,11 +50,11 @@ val eprintln : ('a, unit) printer -> 'a
   (** [eprintln fmt] print on stderr then print a newline and flush
       stderr *)
 
-val fprintf : out_channel -> ('a, unit) printer -> 'a
-  (** [fprintf oc fmt] print on the output channel oc *)
+val fprintf : formatter -> ('a, unit) printer -> 'a
+  (** [fprintf pp fmt] print on the output channel oc *)
 
 val sprintf : ('a, EString.t) printer -> 'a
-  (** [sprintf fmt] return the result as a string *)
+  (** [sprintf fmt] return the result as an estring *)
 
 val nprintf : ('a, string) printer -> 'a
   (** [sprintf fmt] return the result as a native string *)
@@ -82,13 +62,13 @@ val nprintf : ('a, string) printer -> 'a
 val bprintf : Buffer.t -> ('a, unit) printer -> 'a
   (** [bprintf buf] print in a buffer *)
 
-val ifprintf : 'b -> ('a, 'b) printer -> 'a
-  (** [ifprintf x fmt] drop parameters and return [result] *)
+val iprintf : 'b -> ('a, 'b) printer -> 'a
+  (** [iprintf result fmt] drop parameters and return [result] *)
 
 (** {6 Printing with continuation} *)
 
-val kfprintf : (out_channel -> 'b) -> out_channel -> ('a, 'b) printer -> 'a
-  (** [kfprintf cont oc fmt] print on [oc] using [fmt] then call
+val kfprintf : (formatter -> 'b) -> formatter -> ('a, 'b) printer -> 'a
+  (** [kfprintf cont pp fmt] print on [oc] using [fmt] then call
       [cont] *)
 
 val ksprintf : (EString.t -> 'b) -> ('a, 'b) printer -> 'a
@@ -100,7 +80,3 @@ val ksprintf : (EString.t -> 'b) -> ('a, 'b) printer -> 'a
 val knprintf : (string -> 'b) -> ('a, 'b) printer -> 'a
   (** [knprintf cont fmt] create a native string using [fmt] then pass
       it to [cont] *)
-
-val kbprintf : (Buffer.t -> 'b) -> Buffer.t -> ('a, 'b) printer -> 'a
-  (** [kbprintf cont buf fmt] print on [buf] using [fmt] then call
-      [cont] *)

@@ -7,56 +7,54 @@
  * This file is a part of estring.
  *)
 
-type 'acc writer = {
-  add : char -> 'acc -> 'acc;
-  flush : 'acc -> 'acc;
-}
+open Format
 
-let channel_writer = { add = (fun ch oc -> output_char oc ch; oc);
-                       flush = (fun oc -> flush oc; oc) }
-let estring_writer = { add = (fun ch acc -> ch :: acc);
-                       flush = (fun acc -> acc) }
-let buffer_writer = { add = (fun ch buf -> Buffer.add_char buf ch; buf);
-                      flush = (fun buf -> buf) }
-let null_writer = { add = (fun _ acc -> acc);
-                    flush = (fun acc -> acc) }
+type ('a, 'b) printer =  (formatter -> 'b) -> formatter -> 'a
 
-type ('a, 'b) printer = {
-  print : 'acc. ('acc -> 'b) -> 'acc writer -> 'acc -> 'a;
-}
+let unit _ = ()
+let newline pp = pp_print_newline pp ()
+
+let list_formatter lref =
+  make_formatter
+    (fun str ofs len ->
+       for i = ofs to ofs + len - 1 do
+         lref := String.unsafe_get str i :: !lref
+       done)
+    unit
+let null_formatter = make_formatter (fun _ _ _ -> ()) unit
 
 let rec fold f acc = function
   | [] -> acc
   | x :: l -> fold f (f x acc) l
 
-let econst str = { print = fun cont out acc -> cont (fold out.add acc str) }
-let nconst str = { print = fun cont out acc ->
-                     let acc = ref acc in
-                     for i = 0 to String.length str do
-                       acc := out.add (String.unsafe_get str i) !acc
-                     done;
-                     cont !acc }
-let cons a b = { print = fun cont out acc -> a.print (b.print cont out) out acc }
-let nil = { print = fun cont out acc -> cont acc }
-let print__flush = { print = fun cont out acc -> cont (out.flush acc) }
+let econst str cont pp = pp_print_string pp (EString.to_string str); cont pp
+let nconst str cont pp = pp_print_string pp str; cont pp
+let cons a b cont pp = a (b cont) pp
+let nil cont pp = cont pp
+let print__flush cont pp = pp_print_flush pp (); cont pp
 
-let unit _ = ()
-
-let printf fmt = fmt.print unit channel_writer stdout
-let println fmt = fmt.print (fun _ -> print_newline ()) channel_writer stdout
-let eprintf fmt = fmt.print unit channel_writer stderr
-let eprintln fmt = fmt.print (fun _ -> prerr_newline ()) channel_writer stdout
-let fprintf oc fmt = fmt.print unit channel_writer oc
-let sprintf fmt = fmt.print List.rev estring_writer []
+let printf fmt = fmt unit std_formatter
+let println fmt = fmt newline std_formatter
+let eprintf fmt = fmt unit err_formatter
+let eprintln fmt = fmt newline err_formatter
+let fprintf pp fmt = fmt unit pp
+let sprintf fmt =
+  let l = ref [] in
+  let pp = list_formatter l in
+  fmt (fun _ -> pp_print_flush pp (); !l) pp
 let nprintf fmt =
   let buf = Buffer.create 42 in
-  fmt.print Buffer.contents buffer_writer buf
-let bprintf buf fmt = fmt.print unit buffer_writer buf
-let ifprintf result fmt = fmt.print (fun x -> x) null_writer result
+  let pp = formatter_of_buffer buf in
+  fmt (fun _ -> pp_print_flush pp (); Buffer.contents buf) pp
+let bprintf buf fmt = fmt unit (formatter_of_buffer buf)
+let iprintf result fmt = fmt (fun _ -> result) null_formatter
 
-let kfprintf cont oc fmt = fmt.print cont channel_writer oc
-let ksprintf cont fmt = fmt.print cont estring_writer []
+let kfprintf cont pp fmt = fmt cont pp
 let knprintf cont fmt =
   let buf = Buffer.create 42 in
-  fmt.print (fun buf -> cont (Buffer.contents buf)) buffer_writer buf
-let kbprintf cont buf fmt = fmt.print cont buffer_writer buf
+  let pp = formatter_of_buffer buf in
+  fmt (fun _ -> pp_print_flush pp (); cont (Buffer.contents buf)) pp
+let ksprintf cont fmt =
+  let l = ref [] in
+  let pp = list_formatter l in
+  fmt (fun _ -> pp_print_flush pp (); cont !l) pp
