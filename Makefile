@@ -11,7 +11,7 @@ PREFIX = /usr/local
 
 # Targets
 LIB = estring
-TEST = test test_unicode test_default
+TEST = test test_unicode test_default test_format
 TEST_ERROR_LOC_COUNT = 6
 
 MODULES = eChar eList ePrintf eString eString_pervasives eUChar eUnicode

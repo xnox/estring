@@ -58,3 +58,18 @@ let ksprintf cont fmt =
   let l = ref [] in
   let pp = list_formatter l in
   fmt (fun _ -> pp_print_flush pp (); cont !l) pp
+
+let print__open_box x cont pp = pp_open_box pp x; cont pp
+let print__open_hbox cont pp = pp_open_hbox pp (); cont pp
+let print__open_vbox x cont pp = pp_open_vbox pp x; cont pp
+let print__open_hvbox x cont pp = pp_open_hvbox pp x; cont pp
+let print__open_hovbox x cont pp = pp_open_hovbox pp x; cont pp
+let print__close_box cont pp = pp_close_box pp (); cont pp
+let print__print_cut cont pp = pp_print_cut pp (); cont pp
+let print__print_space cont pp = pp_print_space pp (); cont pp
+let print__force_newline cont pp = pp_force_newline pp (); cont pp
+let print__print_break nspaces offset cont pp = pp_print_break pp nspaces offset; cont pp
+let print__print_flush cont pp = pp_print_flush pp (); cont pp
+let print__print_newline cont pp = pp_print_newline pp (); cont pp
+let print__open_tag t cont pp = pp_open_tag pp t; cont pp
+let print__close_tag cont pp = pp_close_tag pp (); cont pp

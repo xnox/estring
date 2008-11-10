@@ -216,25 +216,25 @@ module Nativeint_functions =
                        let ten = 10n
                      end)
 
-let print__d cont pp x = pp_print_estring pp (estring_of_int x); cont pp
+let print__d cont pp x = pp_print_int pp x; cont pp
 let print__i = print__d
 let print__X = Int_functions.pHEX
 let print__x = Int_functions.phex
 let print__u = Int_functions.pdec
 let print__o = Int_functions.poct
-let print__ld cont pp x = pp_print_estring pp (estring_of_int32 x); cont pp
+let print__ld cont pp x = pp_print_string pp (Int32.to_string x); cont pp
 let print__li = print__ld
 let print__lX = Int32_functions.pHEX
 let print__lx = Int32_functions.phex
 let print__lu = Int32_functions.pdec
 let print__lo = Int32_functions.poct
-let print__Ld cont pp x = pp_print_estring pp (estring_of_int64 x); cont pp
+let print__Ld cont pp x = pp_print_string pp (Int64.to_string x); cont pp
 let print__Li = print__Ld
 let print__LX = Int64_functions.pHEX
 let print__Lx = Int64_functions.phex
 let print__Lu = Int64_functions.pdec
 let print__Lo = Int64_functions.poct
-let print__nd cont pp x = pp_print_estring pp (estring_of_nativeint x); cont pp
+let print__nd cont pp x = pp_print_string pp (Nativeint.to_string x); cont pp
 let print__ni = print__nd
 let print__nX = Nativeint_functions.pHEX
 let print__nx = Nativeint_functions.phex
@@ -301,6 +301,7 @@ let print__estring cont pp estr =
 
 let rec plist cont elt_printer pp = function
   | [] ->
+      pp_close_box pp ();
       pp_print_string pp "]";
       cont pp
   | x :: l ->
@@ -314,6 +315,7 @@ let print__list elt_printer cont pp = function
       cont pp
   | x :: l ->
       pp_print_string pp "[";
+      pp_open_box pp 0;
       elt_printer (fun pp -> plist cont elt_printer pp l) pp x
 
 let print__array elt_printer cont pp arr =
@@ -323,12 +325,14 @@ let print__array elt_printer cont pp arr =
         cont pp
     | len ->
         pp_print_string pp "[|";
+        pp_open_box pp 0;
         elt_printer (fun _ -> ()) pp arr.(0);
         for i = 1 to len - 1 do
           pp_print_string pp ";";
           pp_print_space pp ();
           elt_printer (fun _ -> ()) pp arr.(i)
         done;
+        pp_close_box pp ();
         pp_print_string pp "|]";
         cont pp
 

@@ -14,8 +14,8 @@ open Format
 (** {6 Printers} *)
 
 type ('a, 'b) printer =  (formatter -> 'b) -> formatter -> 'a
- (** A printer is a funtion which take a continuation, a formater,
-     then any arguments and print them on the formatter *)
+  (** A printer is a funtion which take a continuation, a formater,
+      then any arguments and print them on the formatter *)
 
 val econst : EString.t -> ('a, 'a) printer
   (** [econst str] printer which do not take any argument and output
@@ -30,9 +30,22 @@ val cons : ('a, 'b) printer -> ('b, 'c) printer -> ('a, 'c) printer
 val nil : ('a, 'a) printer
   (** [nil] printer which do nothing *)
 
-val print__flush : ('a, 'a) printer
-  (** [print__flush] printer which print nothing and flush the
-      formatter *)
+(** {6 Formatting functions} *)
+
+val print__open_box : int -> ('a, 'a) printer
+val print__open_hbox : ('a, 'a) printer
+val print__open_vbox : int -> ('a, 'a) printer
+val print__open_hvbox : int -> ('a, 'a) printer
+val print__open_hovbox : int -> ('a, 'a) printer
+val print__close_box : ('a, 'a) printer
+val print__print_cut : ('a, 'a) printer
+val print__print_space : ('a, 'a) printer
+val print__force_newline : ('a, 'a) printer
+val print__print_break : int -> int -> ('a, 'a) printer
+val print__print_flush : ('a, 'a) printer
+val print__print_newline : ('a, 'a) printer
+val print__open_tag : string -> ('a, 'a) printer
+val print__close_tag : ('a, 'a) printer
 
 (** {6 Printing functions} *)
 

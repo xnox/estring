@@ -225,18 +225,15 @@ let uchr = U"e"
     For example:
 *)
 
-let fmt () = p"x = %es, y = {option int}"
+let fmt = p"x = %es, y = {option int}"
 
 (** will be replaced by: *)
 
-let fmt () =
-  EPrintf.cons
-    (EPrintf.nconst n"x = ")
-    (EPrintf.cons
-       print__es
-       (EPrintf.cons
-          (EPrintf.nconst n", y = ")
-          (print__option print__int)))
+let fmt cont pp =
+  EPrintf.cons (EPrintf.nconst n"x = ")
+    (EPrintf.cons print__es
+       (EPrintf.cons (EPrintf.nconst n", y = ") (print__option print__int)))
+    cont pp
 
 (** +----------+
     | Printers |
