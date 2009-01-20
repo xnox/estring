@@ -1,91 +1,45 @@
 # Makefile
 # --------
-# Copyright : (c) 2008, Jeremie Dimino <jeremie@dimino.org>
+# Copyright : (c) 2009, Jeremie Dimino <jeremie@dimino.org>
 # Licence   : BSD3
 #
 # This file is a part of estring.
 
-OC = ocamlbuild
 OF = ocamlfind
-PREFIX = /usr/local
 
-# Targets
-LIB = estring
-TEST = test test_unicode test_default test_format
-TEST_ERROR_LOC_COUNT = 6
+NAME = estring
+VERSION = $(shell head -n 1 VERSION)
 
-MODULES = eChar eList ePrintf eString eString_pervasives eUChar eUnicode
+.PHONY: all
+all: META pa_estring.cmo sample/sample
 
-.PHONY: all clean lib lib-byte lib-native test test-error-loc install just-install uninstall
+pa_estring.cmi: pa_estring.mli
+	ocamlc -I +camlp4 -c pa_estring.mli
 
-all:
-	$(OC) $(LIB:=.cma) $(LIB:=.cmxa) \
-	  $(TEST:%=test/%.d.byte) \
-	  estring.docdir/index.html \
-	  manual.cmo
+pa_estring.cmo: pa_estring.cmi pa_estring.ml
+	ocamlc -I +camlp4 -pp camlp4of -c pa_estring.ml
 
-# +------------------+
-# | Specific targets |
-# +------------------+
+sample/pa_string_list.cmo: pa_estring.cmo sample/pa_string_list.ml
+	ocamlc -I +camlp4 -pp camlp4of pa_estring.cmo -c sample/pa_string_list.ml
 
-lib-byte:
-	$(OC) $(LIB:=.cma)
+sample/sample: pa_estring.cmo sample/pa_string_list.cmo sample/sample.ml
+	ocamlc -pp 'camlp4o pa_estring.cmo sample/pa_string_list.cmo' sample/sample.ml -o sample/sample
 
-lib-native:
-	$(OC) $(LIB:=.cmxa)
+META: VERSION META.in
+	sed -e 's/@VERSION@/$(VERSION)/' META.in > META
 
-lib:
-	$(OC) $(LIB:=.cma) $(LIB:=.cmxa)
+.PHONY: dist
+dist:
+	DARCS_REPO=$(PWD) darcs dist --dist-name $(NAME)-$(VERSION)
 
-test:
-	$(OC) $(TEST:%=test/%.d.byte)
+.PHONY: install
+install:
+	$(OF) install $(NAME) META pa_estring.cmo pa_estring.cmi
 
-test-error-loc:
-	for i in `seq 1 $(TEST_ERROR_LOC_COUNT)`; do \
-	  $(OC) test/test_error_loc/test$$i.cmo || true; \
-	done
-
-# +---------------+
-# | Documentation |
-# +---------------+
-
-doc:
-	$(OC) estring.docdir/index.html
-
-dot:
-	$(OC) estring.docdir/index.dot
-
-# +--------------------+
-# | Installation stuff |
-# +--------------------+
-
-install: all just-install
-
-just-install:
-	$(OF) install estring META manual.ml \
-	 syntax/pa_estring.mli \
-	 _build/syntax/pa_estring.cmo \
-	 _build/syntax/pa_estring.cmi \
-	 $(LIB:%=_build/%.cma) \
-	 $(LIB:%=_build/%.cmxa) \
-	 $(LIB:%=_build/%.a) \
-	 $(MODULES:%=src/%.mli) \
-	 $(MODULES:%=_build/src/%.cmi)
-	mkdir -p $(PREFIX)/share/doc/estring/html
-	install -vm 0644 LICENSE $(PREFIX)/share/doc/estring
-	install -vm 0644 _build/estring.docdir/* $(PREFIX)/share/doc/estring/html
-
+.PHONY: uninstall
 uninstall:
-	$(OF) remove estring
-	rm -rvf $(PREFIX)/share/doc/estring
+	$(OF) remove $(NAME)
 
-# +-------+
-# | Other |
-# +-------+
-
+.PHONY: clean
 clean:
-	$(OC) -clean
-
-# "make" is shorter than "ocamlbuild"...
-%:
-	$(OC) $*
+	rm -f META $(NAME)-*.tar.gz *.cm* sample/*.cm* sample/sample

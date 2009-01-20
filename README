@@ -1,40 +1,43 @@
-estring is an extension for string definition/manipulation in OCaml.
+                    Extension for string literals
+
+                 Jeremie Dimino <jeremie@dimino.org>
+                             January 2009
 
 url: https://forge.ocamlcore.org/projects/estring/
 
-* Requirements:
+* What is estring
 
-  estring depends only on the standard library of ocaml.
+Estring is a syntax extension which aims to make the use of custom
+string types more convenient.
 
-* Installation:
+The idea is to replace code like that:
 
-  To install estring just type:
+  (My_string.of_string "string literals")
 
-  $ make PREFIX=<prefix> install
+by that:
 
-  You call also do:
+  m"string literals"
+
+* Building and installation
+
+To build and install estring just type:
 
   $ make all
-  $ make PREFIX=<prefix> just-install
+  $ make install
 
-  If you want to install files using a different user.
+This will install the estring package (ocamlfind is required).
 
-* Using the library
+* How to use it
 
-  estring install the following packages:
+Files in the "sample" directory show how to define string convertors.
 
-  - estring.syntax:
-      The estring syntax extension.
+* Development
 
-  - estring.lib:
-      The estring runtime library.
-
-  - estring:
-      estring.lib + estring.syntax.
-
-* Development:
-
-  The last development version of estring can always be found in the
-  darcs repository hosted at darcs.ocamlcore.org:
+The last development version of estring can always be found in the
+darcs repository hosted at darcs.ocamlcore.org:
 
   $ darcs get http://darcs.ocamlcore.org/repos/estring/estring
+
+local variables:
+mode: outline
+end:
