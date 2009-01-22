@@ -232,7 +232,8 @@ let register_shared_expr =
     let id = "__estring_constant_" ^ string_of_int !nb in
     incr nb;
     shared_exprs := (id, expr) :: !shared_exprs;
-    id
+    let _loc = Ast.loc_of_expr expr in
+    <:ident< $lid:id$ >>
 
 let expand_expr _loc str =
   match specifier _loc with
@@ -242,7 +243,7 @@ let expand_expr _loc str =
               let expr = f _loc str in
               if shared then
                 let id = register_shared_expr expr in
-                <:expr< $lid:id$ >>
+                <:expr< $id:id$ >>
               else
                 expr
           | None ->

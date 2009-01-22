@@ -44,7 +44,7 @@ val register_when_patt_specifier : specifier -> (Loc.t -> Ast.ident -> string ->
 
 (** {6 Shared expression} *)
 
-val register_shared_expr : Ast.expr -> string
+val register_shared_expr : Ast.expr -> Ast.ident
   (** [register_shared_expr expr] registers [expr] as a shared
       constant and return the identifier to which it is bound. The
       binding will be placed at the beging of the file. *)
