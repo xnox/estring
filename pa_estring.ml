@@ -151,14 +151,27 @@ let unescape loc str =
    | Specifier registration |
    +------------------------+ *)
 
+module String_set = Set.Make(String)
+
+let specifiers = ref String_set.empty
+let add_specifier spec =
+  specifiers := String_set.add spec !specifiers
+
 let expr_specifiers = Hashtbl.create 42
 let patt_specifiers = Hashtbl.create 42
+let when_patt_specifiers = Hashtbl.create 42
 
 let register_expr_specifier ?(shared=false) specifier f =
+  add_specifier specifier;
   Hashtbl.add expr_specifiers specifier (shared, f)
 
 let register_patt_specifier specifier f =
+  add_specifier specifier;
   Hashtbl.add patt_specifiers specifier f
+
+let register_when_patt_specifier specifier f =
+  add_specifier specifier;
+  Hashtbl.add when_patt_specifiers specifier f
 
 (* +------------------------------+
    | String specifier recognition |
@@ -189,8 +202,7 @@ let wrap_stream stm =
       previous := tok;
 
       match tok with
-        | (LIDENT id | UIDENT id) when prev <> KEYWORD "." &&
-            (lookup expr_specifiers id <> None || lookup patt_specifiers id <> None) ->
+        | (LIDENT id | UIDENT id) when prev <> KEYWORD "." && String_set.mem id !specifiers ->
             begin match Stream.peek stm with
               | Some(STRING(s, orig), loc) ->
                   Stream.junk stm;
@@ -222,47 +234,98 @@ let register_shared_expr =
     shared_exprs := (id, expr) :: !shared_exprs;
     id
 
-let map = object
-  inherit Ast.map as super
-
-  method expr e = match super#expr e with
-    | <:expr@_loc< $str:str$ >> as e -> begin
-        match specifier _loc with
-          | Some specifier -> begin
-              match lookup expr_specifiers specifier with
-                | Some(shared, f) ->
-                    let expr = f _loc str in
-                    if shared then
-                      let id = register_shared_expr expr in
-                      <:expr< $lid:id$ >>
-                    else
-                      expr
-                | None ->
-                    Loc.raise _loc
-                      (Failure
-                         (sprintf "pa_estring: unknown string expression specifier: %S" specifier))
-            end
-          | None -> e
+let expand_expr _loc str =
+  match specifier _loc with
+    | Some specifier -> begin
+        match lookup expr_specifiers specifier with
+          | Some(shared, f) ->
+              let expr = f _loc str in
+              if shared then
+                let id = register_shared_expr expr in
+                <:expr< $lid:id$ >>
+              else
+                expr
+          | None ->
+              Loc.raise _loc
+                (Failure
+                   (sprintf "pa_estring: unknown string expression specifier: %S" specifier))
       end
 
-    | e -> e
+    | None ->
+        <:expr< $str:str$ >>
+
+let expand_patt _loc str =
+  match specifier _loc with
+    | Some specifier -> begin
+        match lookup patt_specifiers specifier with
+          | Some f ->
+              f _loc str
+          | None ->
+              Loc.raise _loc
+                (Failure
+                   (sprintf "pa_estring: unknown string pattern specifier: %S" specifier))
+      end
+
+    | None ->
+        <:patt< $str:str$ >>
+
+(* Replace extended strings with identifiers and collect conditions *)
+let map_match (num, conds) = object
+  inherit Ast.map as super
 
   method patt p = match super#patt p with
     | <:patt@_loc< $str:str$ >> as p -> begin
         match specifier _loc with
           | Some specifier -> begin
-              match lookup patt_specifiers specifier with
+              match lookup when_patt_specifiers specifier with
                 | Some f ->
-                    f _loc str
+                    let id = <:ident< $lid:"__estring_var_" ^ string_of_int !num$ >> in
+                    incr num;
+                    conds := f _loc id str :: !conds;
+                    <:patt< $id:id$ >>
+
                 | None ->
-                    Loc.raise _loc
-                      (Failure
-                         (sprintf "pa_estring: unknown string pattern specifier: %S" specifier))
+                    expand_patt _loc str
             end
-          | None -> p
+
+          | None ->
+              p
       end
 
     | p -> p
+end
+
+let map = object
+  inherit Ast.map as super
+
+  method expr e = match super#expr e with
+    | <:expr@_loc< $str:str$ >> -> expand_expr _loc str
+    | e -> e
+
+  method patt p = match super#patt p with
+    | <:patt@_loc< $str:str$ >> -> expand_patt _loc str
+    | p -> p
+
+  method match_case mc = match super#match_case mc with
+    | <:match_case@_loc< $p$ when $c$ -> $e$ >> as mc ->
+        let conds = ref [] in
+        let p = (map_match (ref 0, conds))#patt p in
+        let gen_mc first_cond conds =
+          <:match_case< $p$ when $List.fold_left (fun acc cond -> <:expr< $cond$ && $acc$ >>) first_cond conds$ -> $e$ >>
+        in
+        begin match c, !conds with
+          | <:expr< >>, [] ->
+              mc
+
+          | <:expr< >>, c :: l ->
+              gen_mc c l
+
+          | e, l ->
+              gen_mc e l
+        end
+
+    | mc ->
+        mc
 end
 
 (* +--------------+

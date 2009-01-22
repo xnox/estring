@@ -33,6 +33,12 @@ val register_patt_specifier : specifier -> (Loc.t -> string -> Ast.patt) -> unit
   (** [register_patt_specifier spec f] same thing but for strings in
       patterns *)
 
+val register_when_patt_specifier : specifier -> (Loc.t -> Ast.ident -> string -> Ast.expr) -> unit
+  (** [register_when_patt_specifier spec f] same as
+      [register_patt_specifier] but the string will be tested by a
+      'when' clause. [f] takes as argument the identifier used in the
+      pattern and the string. *)
+
 (** Note: for more complicated case you must write your must register
     your own ast filter *)
 
