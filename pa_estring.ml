@@ -350,4 +350,7 @@ let _ =
                  let _loc = Ast.loc_of_expr expr in
                  <:str_item< let $lid:id$ = $expr$ >>) !shared_exprs)$
          $si$
-       >>)
+       >>);
+
+  (* Mapper for the toplevel *)
+  AstFilters.register_topphrase_filter (map#str_item)
