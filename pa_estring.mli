@@ -15,39 +15,57 @@ type specifier = string
     (** Type of a string specifier (the letters just before the
         string) *)
 
-val specifier : Loc.t -> specifier option
-  (** Returns the specifier associated to a string location *)
-
 (** {6 Specifier registration} *)
 
-val register_expr_specifier : ?shared:bool -> specifier -> (Loc.t -> string -> Ast.expr) -> unit
-  (** [register_expr_specifier ?shared spec f] registers [f] as an
-      mapping function for string with the specifier [spec] in
-      expressions.
+type context
+  (** Context of an expression *)
 
-      If [shared] is true, the resulting expression will be defined as
-      a global constant, at the begining of the file. [shared]
-      defaults to [false]. *)
+val register_expr_specifier : specifier -> (context -> Loc.t -> string -> Ast.expr) -> unit
+  (** [register_expr_specifier spec f] registers [f] as a mapping
+      function for string with the specifier [spec] in expressions. *)
 
-val register_patt_specifier : specifier -> (Loc.t -> string -> Ast.patt) -> unit
+val register_patt_specifier : specifier -> (context -> Loc.t -> string -> Ast.patt) -> unit
   (** [register_patt_specifier spec f] same thing but for strings in
       patterns *)
 
-val register_when_patt_specifier : specifier -> (Loc.t -> Ast.ident -> string -> Ast.expr) -> unit
-  (** [register_when_patt_specifier spec f] same as
-      [register_patt_specifier] but the string will be tested by a
-      'when' clause. [f] takes as argument the identifier used in the
-      pattern and the string. *)
+val register_when_specifier : specifier -> (context -> Loc.t -> Ast.ident -> string -> Ast.expr) -> unit
+  (** [register_when_specifier spec f] same thing, but for strings in
+      match case, which will be compared using a when clause. [f]
+      takes as argument the identifier used in the pattern and the
+      string. *)
 
-(** Note: for more complicated case you must write your must register
-    your own ast filter *)
+(** Note: strings are passed unescaped to the expansion functions *)
 
 (** {6 Shared expression} *)
 
-val register_shared_expr : Ast.expr -> Ast.ident
-  (** [register_shared_expr expr] registers [expr] as a shared
+val register_shared_expr : context -> Ast.expr -> Ast.ident
+  (** [register_shared_expr context expr] registers [expr] as a shared
       constant and return the identifier to which it is bound. The
-      binding will be placed at the beging of the file. *)
+      binding will be placed in the current definition.
+
+      for example with the following specifier:
+
+      {[
+        register_expr_specifier "u"
+          (fun context _loc str ->
+             let id = register_shared_expr context <:expr< UTF8.of_string $str:str$ >> in
+             <:expr< $id:id$ >>)
+      ]}
+
+      The following definition:
+
+      {[
+        let f x y z = u"foo"
+      ]}
+
+      will be expanded to:
+
+      {[
+        let f =
+          let __estring_shared_0 = UTF8.of_string "foo" in
+          fun x y z -> __estring_shared_0
+      ]}
+ *)
 
 (** {6 Lists with location} *)
 

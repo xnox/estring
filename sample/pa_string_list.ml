@@ -15,6 +15,6 @@ open Pa_estring
 
 let _ =
   register_expr_specifier "l"
-    (fun loc str -> llist_expr (fun _loc ch -> <:expr< $chr:Char.escaped ch$ >>) (unescape loc str));
+    (fun ctx loc str -> llist_expr (fun _loc ch -> <:expr< $chr:Char.escaped ch$ >>) (unescape loc str));
   register_patt_specifier "l"
-    (fun loc str -> llist_patt (fun _loc ch -> <:patt< $chr:Char.escaped ch$ >>) (unescape loc str))
+    (fun ctx loc str -> llist_patt (fun _loc ch -> <:patt< $chr:Char.escaped ch$ >>) (unescape loc str))
