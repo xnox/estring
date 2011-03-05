@@ -357,12 +357,20 @@ let map_expr e =
     (fun acc (_loc, id, expr) -> <:expr< let $lid:id$ = $expr$ in $acc$ >>)
     e context.shared_exprs
 
-let map_class_expr e =
-  let context = { next_id = 0; shared_exprs = [] } in
-  let e = (map context)#class_expr e in
-  List.fold_left
-    (fun acc (_loc, id, expr) -> <:class_expr< let $lid:id$ = $expr$ in $acc$ >>)
-    e context.shared_exprs
+let rec map_class_expr = function
+  | Ast.CeAnd(loc, e1, e2) ->
+      Ast.CeAnd(loc, map_class_expr e1, map_class_expr e2)
+  | Ast.CeEq(loc, name, e) ->
+      let context = { next_id = 0; shared_exprs = [] } in
+      let e = (map context)#class_expr e in
+      let e =
+        List.fold_left
+          (fun acc (_loc, id, expr) -> <:class_expr< let $lid:id$ = $expr$ in $acc$ >>)
+          e context.shared_exprs
+      in
+      Ast.CeEq(loc, name, e)
+  | ce ->
+      ce
 
 let rec map_binding = function
   | <:binding@_loc< $id$ = $e$ >> ->
