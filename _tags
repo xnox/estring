@@ -1,0 +1,16 @@
+<**/*.ml>: syntax_camlp4o
+<sample/sample.ml>: pa_estring, pa_string_list
+
+# OASIS_START
+# DO NOT EDIT (digest: 8a29167ef8c3183562405b4f8a08e219)
+# Library estring
+<*.ml{,i}>: pkg_camlp4.quotations.o
+<*.ml{,i}>: pkg_camlp4.lib
+# Executable sample
+<sample/sample.{native,byte}>: use_estring
+<sample/sample.{native,byte}>: pkg_camlp4.quotations.o
+<sample/sample.{native,byte}>: pkg_camlp4.lib
+<sample/*.ml{,i}>: use_estring
+<sample/*.ml{,i}>: pkg_camlp4.quotations.o
+<sample/*.ml{,i}>: pkg_camlp4.lib
+# OASIS_STOP

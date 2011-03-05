@@ -1,0 +1,10 @@
+# OASIS_START
+# DO NOT EDIT (digest: 72a5743e205b7e553ef5226fb35e7ed8)
+version = "1.0"
+description = "Extension for string literals"
+requires = "camlp4"
+archive(byte) = "estring.cma"
+archive(native) = "estring.cmxa"
+exists_if = "estring.cma"
+# OASIS_STOP
+

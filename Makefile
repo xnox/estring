@@ -1,48 +1,44 @@
-# Makefile
-# --------
-# Copyright : (c) 2009, Jeremie Dimino <jeremie@dimino.org>
-# Licence   : BSD3
-#
-# This file is a part of estring.
+# OASIS_START
+# DO NOT EDIT (digest: bc1e05bfc8b39b664f29dae8dbd3ebbb)
 
-OF = ocamlfind
+SETUP = ocaml setup.ml
 
-NAME = estring
-VERSION = $(shell head -n 1 VERSION)
+build: setup.data
+	$(SETUP) -build $(BUILDFLAGS)
 
-.PHONY: all
-all: META pa_estring.cmo pa_estring_top.cmo sample/sample
+doc: setup.data build
+	$(SETUP) -doc $(DOCFLAGS)
 
-pa_estring.cmi: pa_estring.mli
-	ocamlc -I +camlp4 -c pa_estring.mli
+test: setup.data build
+	$(SETUP) -test $(TESTFLAGS)
 
-pa_estring.cmo: pa_estring.cmi pa_estring.ml
-	ocamlc -I +camlp4 -pp camlp4of -c pa_estring.ml
+all: 
+	$(SETUP) -all $(ALLFLAGS)
 
-sample/pa_string_list.cmo: pa_estring.cmo sample/pa_string_list.ml
-	ocamlc -I +camlp4 -pp camlp4of pa_estring.cmo -c sample/pa_string_list.ml
+install: setup.data
+	$(SETUP) -install $(INSTALLFLAGS)
 
-sample/sample: pa_estring.cmo sample/pa_string_list.cmo sample/sample.ml
-	ocamlc -pp 'camlp4o pa_estring.cmo sample/pa_string_list.cmo' sample/sample.ml -o sample/sample
+uninstall: setup.data
+	$(SETUP) -uninstall $(UNINSTALLFLAGS)
 
-pa_estring_top.cmo: pa_estring.cmo pa_estring_top.ml
-	ocamlc -I +camlp4 -c pa_estring_top.ml
+reinstall: setup.data
+	$(SETUP) -reinstall $(REINSTALLFLAGS)
 
-META: VERSION META.in
-	sed -e 's/@VERSION@/$(VERSION)/' META.in > META
+clean: 
+	$(SETUP) -clean $(CLEANFLAGS)
+
+distclean: 
+	$(SETUP) -distclean $(DISTCLEANFLAGS)
+
+setup.data:
+	$(SETUP) -configure $(CONFIGUREFLAGS)
+
+.PHONY: build doc test all install uninstall reinstall clean distclean configure
+
+# OASIS_STOP
+
+-include setup.data
+dist:
+	DARCS_REPO=`pwd` darcs dist --dist-name $(pkg_name)-$(pkg_version)
 
 .PHONY: dist
-dist:
-	DARCS_REPO=$(PWD) darcs dist --dist-name $(NAME)-$(VERSION)
-
-.PHONY: install
-install:
-	$(OF) install $(NAME) META pa_estring.cmo pa_estring.cmi pa_estring_top.cmo
-
-.PHONY: uninstall
-uninstall:
-	$(OF) remove $(NAME)
-
-.PHONY: clean
-clean:
-	rm -f META $(NAME)-*.tar.gz *.cm* sample/*.cm* sample/sample

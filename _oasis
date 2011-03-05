@@ -1,0 +1,65 @@
+# +-------------------------------------------------------------------+
+# | Package parameters                                                |
+# +-------------------------------------------------------------------+
+
+OASISFormat: 0.1
+Name: estring
+Version: 1.0
+LicenseFile: LICENSE
+License: BSD3
+Authors: Jérémie Dimino
+Homepage: http://estring.forge.ocamlcore.org/
+BuildTools: ocamlbuild
+Plugins: DevFiles (0.2), META (0.2)
+Synopsis: Extension for string literals
+Description:
+        Estring allows to transforms string literals in programs by
+        prefixing them with a specifier. For example ``u"foo"'' can be
+        autolatically replaced by ``Unicode.of_string "foo"''.
+
+# +-------------------------------------------------------------------+
+# | The library                                                       |
+# +-------------------------------------------------------------------+
+
+Library estring
+  FindlibName: estring
+  BuildDepends: camlp4.lib, camlp4.quotations.o
+  XMETADescription: Extension for string literals
+  XMETARequires: camlp4
+  Path: ./
+  Install: true
+  Modules: Pa_estring
+
+# +-------------------------------------------------------------------+
+# | Examples                                                          |
+# +-------------------------------------------------------------------+
+
+Executable sample
+  Path: sample
+  Install: false
+  CompiledObject: best
+  MainIs: sample.ml
+  BuildDepends: estring
+
+# +-------------------------------------------------------------------+
+# | Doc                                                               |
+# +-------------------------------------------------------------------+
+
+Document "estring-api"
+  Title: API reference for Estring
+  Type: ocamlbuild (0.2)
+  Install: true
+  InstallDir: $htmldir/api
+  DataFiles: style.css
+  BuildTools: ocamldoc
+  XOCamlbuildPath: ./
+  XOCamlbuildLibraries: estring
+
+# +-------------------------------------------------------------------+
+# | Misc                                                              |
+# +-------------------------------------------------------------------+
+
+SourceRepository head
+  Type: darcs
+  Location: http://darcs.ocamlcore.org/repos/estring
+  Browser: http://darcs.ocamlcore.org/cgi-bin/darcsweb.cgi?r=estring;a=summary
