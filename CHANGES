@@ -1,0 +1,4 @@
+===== 1.1 (2011-03-05) =====
+
+  * fix a bug in expansion of class expressions
+  * use oasis

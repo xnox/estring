@@ -1,6 +1,6 @@
 # OASIS_START
-# DO NOT EDIT (digest: 72a5743e205b7e553ef5226fb35e7ed8)
-version = "1.0"
+# DO NOT EDIT (digest: 5ea1d1f7c3f5836e78c45b2adafe94b5)
+version = "1.1"
 description = "Extension for string literals"
 requires = "camlp4"
 archive(byte) = "estring.cma"
