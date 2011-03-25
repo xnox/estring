@@ -1,44 +1,56 @@
-# OASIS_START
-# DO NOT EDIT (digest: bc1e05bfc8b39b664f29dae8dbd3ebbb)
+# Makefile
+# --------
+# Copyright : (c) 2011, Jeremie Dimino <jeremie@dimino.org>
+# Licence   : BSD3
+#
+# This file is a part of estring.
 
 SETUP = ocaml setup.ml
+NAME = $(shell oasis query Name | tail -n 1)
+VERSION = $(shell oasis query Version | tail -n 1)
 
+.PHONY: build
 build: setup.data
-	$(SETUP) -build $(BUILDFLAGS)
+	$(SETUP) -build
 
+.PHONY: doc
 doc: setup.data build
-	$(SETUP) -doc $(DOCFLAGS)
+	$(SETUP) -doc
 
+.PHONY: test
 test: setup.data build
-	$(SETUP) -test $(TESTFLAGS)
+	$(SETUP) -test
 
-all: 
-	$(SETUP) -all $(ALLFLAGS)
+.PHONY: all
+all: setup.ml
+	$(SETUP) -all
 
+.PHONY: install
 install: setup.data
-	$(SETUP) -install $(INSTALLFLAGS)
+	$(SETUP) -install
 
+.PHONY: uninstall
 uninstall: setup.data
-	$(SETUP) -uninstall $(UNINSTALLFLAGS)
+	$(SETUP) -uninstall
 
+.PHONY: reinstall
 reinstall: setup.data
-	$(SETUP) -reinstall $(REINSTALLFLAGS)
+	$(SETUP) -reinstall
 
-clean: 
-	$(SETUP) -clean $(CLEANFLAGS)
+.PHONY: clean
+clean: setup.ml
+	$(SETUP) -clean
 
-distclean: 
-	$(SETUP) -distclean $(DISTCLEANFLAGS)
+.PHONY: distclean
+distclean: setup.ml
+	$(SETUP) -distclean
 
-setup.data:
-	$(SETUP) -configure $(CONFIGUREFLAGS)
+setup.data: setup.ml
+	$(SETUP) -configure
 
-.PHONY: build doc test all install uninstall reinstall clean distclean configure
-
-# OASIS_STOP
-
--include setup.data
-dist:
-	DARCS_REPO=`pwd` darcs dist --dist-name $(pkg_name)-$(pkg_version)
+setup.ml:
+	$(error Please run the "configure" script first)
 
 .PHONY: dist
+dist:
+	DARCS_REPO=$(shell pwd) darcs dist --dist-name $(NAME)-$(VERSION)
