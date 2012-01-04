@@ -1,5 +1,4 @@
 (^|/)_build($|/)
 ^estring-.*\.tar\.gz$
-^setup\.ml$
 ^setup\.data$
 ^setup\.log$
