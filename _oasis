@@ -26,6 +26,7 @@ Library estring
   BuildDepends: camlp4, camlp4.quotations.o
   XMETADescription: Extension for string literals
   XMETARequires: camlp4
+  XMETAType: syntax
   Path: ./
   Install: true
   Modules: Pa_estring
