@@ -11,6 +11,7 @@ Authors: Jérémie Dimino
 Homepage: http://estring.forge.ocamlcore.org/
 BuildTools: ocamlbuild
 Plugins: DevFiles (0.3), META (0.3)
+XDevFilesEnableMakefile: false
 Synopsis: Extension for string literals
 Description:
         Estring allows to transforms string literals in programs by
