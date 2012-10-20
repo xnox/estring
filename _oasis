@@ -61,6 +61,6 @@ Document "estring-api"
 # +-------------------------------------------------------------------+
 
 SourceRepository head
-  Type: darcs
-  Location: http://darcs.ocamlcore.org/repos/estring
-  Browser: http://darcs.ocamlcore.org/cgi-bin/darcsweb.cgi?r=estring;a=summary
+  Type: git
+  Location: https://github.com/diml/estring.git
+  Browser: https://github.com/diml/estring

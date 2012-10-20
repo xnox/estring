@@ -1,0 +1,6 @@
+_build/
+/estring-*.tar.gz
+/setup.data
+/setup.log
+/setup.exe
+/setup-dev.exe
