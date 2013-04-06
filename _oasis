@@ -7,16 +7,17 @@ Name: estring
 Version: 1.3
 LicenseFile: LICENSE
 License: BSD3
-Authors: Jérémie Dimino
+Authors: Jeremie Dimino
+Maintainers: Jeremie Dimino <jeremie@dimino.org>
 Homepage: http://estring.forge.ocamlcore.org/
 BuildTools: ocamlbuild
 Plugins: DevFiles (0.3), META (0.3)
 XDevFilesEnableMakefile: false
 Synopsis: Extension for string literals
 Description:
-        Estring allows to transforms string literals in programs by
+        Estring allows to transform string literals in programs by
         prefixing them with a specifier. For example ``u"foo"'' can be
-        autolatically replaced by ``Unicode.of_string "foo"''.
+        automatically replaced by ``Unicode.of_string "foo"''.
 
 # +-------------------------------------------------------------------+
 # | The library                                                       |
