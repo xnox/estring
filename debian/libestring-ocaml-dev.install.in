@@ -1,0 +1,6 @@
+usr/share/doc
+@OCamlStdlibDir@/*/*.cmi
+@OCamlStdlibDir@/*/*.ml*
+OPT: @OCamlStdlibDir@/*/*.cmx*
+OPT: @OCamlStdlibDir@/*/*.a
+

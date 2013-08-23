@@ -1,0 +1,48 @@
+Source: ocaml-estring
+Section: ocaml
+Priority: optional
+Maintainer: Debian OCaml Maintainers <debian-ocaml-maint@lists.debian.org>
+Uploaders:
+ Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>
+Build-Depends:
+ debhelper (>= 9),
+ dh-ocaml,
+ libfindlib-ocaml-dev,
+ liboasis-ocaml-dev,
+ ocaml-findlib,
+ ocaml-nox
+Standards-Version: 3.9.4
+Homepage: https://forge.ocamlcore.org/projects/estring/
+
+Package: libestring-ocaml
+Architecture: any
+Depends:
+ ${misc:Depends},
+ ${ocaml:Depends},
+ ${shlibs:Depends}
+Provides:
+ ${ocaml:Provides}
+Description: Estring: OCaml development platform (runtime)
+ estring, which stands for `extended strings' is a syntax extension
+ allowing to prefix string literals with a specifier to change their
+ meaning.
+ .
+ This package used to be part of the batteries project.
+ .
+ This package contains the shared runtime libraries.
+
+Package: libestring-ocaml-dev
+Architecture: any
+Depends:
+ ocaml-findlib,
+ ${misc:Depends},
+ ${ocaml:Depends},
+ ${shlibs:Depends}
+Provides:
+ ${ocaml:Provides}
+Description: Estring: OCaml development platform (development)
+ estring, which stands for `extended strings' is a syntax extension
+ allowing to prefix string literals with a specifier to change their
+ meaning.
+ .
+ This package used to be part of the batteries project.

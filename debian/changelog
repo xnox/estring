@@ -1,0 +1,5 @@
+ocaml-estring (20130822-1) unstable; urgency=low
+
+  * Initial release (Closes: #720547)
+
+ -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Thu, 22 Aug 2013 23:30:07 +0100
